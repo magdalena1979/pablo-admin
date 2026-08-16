@@ -1,0 +1,31 @@
+{
+  "name": "pablo-mendivil-gestion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.3",
+    "lucide-react": "^0.564.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-router-dom": "^7.9.6",
+    "recharts": "2.15.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.0",
+    "@types/node": "^22",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "postcss": "^8.5",
+    "tailwindcss": "^4.2.0",
+    "typescript": "5.7.3",
+    "vite": "^7.2.7"
+  }
+}

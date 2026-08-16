@@ -1,0 +1,13 @@
+insert into public.agricultural_cycles(id,farm_id,campaign_id,lot_id,crop,variety,sown_hectares,harvested_hectares,sowing_date,harvest_date,target_yield_kg_ha,produced_tons,sold_tons,livestock_feed_tons,other_use_tons,reference_price_ars_ton,status,notes,created_by)
+select v.id,v.farm_id,v.campaign_id,v.lot_id,v.crop,v.variety,v.sown_ha,v.harvested_ha,v.sowing_date,v.harvest_date,v.target_yield,v.produced,v.sold,v.feed,v.other_use,v.reference_price,v.status::public.crop_cycle_status,v.notes,p.id
+from(values
+('f1000000-0000-4000-8000-000000000001'::uuid,'20000000-0000-4000-8000-000000000001'::uuid,'30000000-0000-4000-8000-000000000001'::uuid,'40000000-0000-4000-8000-000000000004'::uuid,'Maíz para alimentación','Híbrido templado',305::numeric,305::numeric,'2025-10-18'::date,'2026-04-22'::date,8200::numeric,2348.5::numeric,168::numeric,0::numeric,0::numeric,281000::numeric,'cosechado','Grano propio; parte destinada a suplementación ganadera'),
+('f3000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000003','30000000-0000-4000-8000-000000000003','40000000-0000-4000-8000-000000000012','Soja de primera','Grupo IV corto',425,425,'2025-11-05','2026-04-28',3400,1402.5,285,0,0,505000,'cosechado','Rinde parejo; parte de la producción permanece almacenada'),
+('f3000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000003','30000000-0000-4000-8000-000000000003','40000000-0000-4000-8000-000000000013','Maíz','Híbrido VT3P',390,0,'2026-08-02',null,8500,0,0,0,0,281000,'implantado','Campaña nueva; labores de implantación en curso'),
+('f3000000-0000-4000-8000-000000000003','20000000-0000-4000-8000-000000000003','30000000-0000-4000-8000-000000000003','40000000-0000-4000-8000-000000000014','Trigo pan','Baguette 620',275,275,'2025-06-24','2025-12-18',4600,1237.5,132,0,0,307800,'cosechado','Calidad comercial estándar; saldo en acopio')
+)v(id,farm_id,campaign_id,lot_id,crop,variety,sown_ha,harvested_ha,sowing_date,harvest_date,target_yield,produced,sold,feed,other_use,reference_price,status,notes)
+cross join lateral(select id from public.profiles where role='super_admin' and active order by created_at limit 1)p
+on conflict(campaign_id,lot_id,crop)do update set produced_tons=excluded.produced_tons,sold_tons=excluded.sold_tons,livestock_feed_tons=excluded.livestock_feed_tons,reference_price_ars_ton=excluded.reference_price_ars_ton,status=excluded.status;
+
+update public.field_operations set agricultural_cycle_id='f1000000-0000-4000-8000-000000000001' where id='e1000000-0000-4000-8000-000000000002';
+update public.field_operations set agricultural_cycle_id='f3000000-0000-4000-8000-000000000002' where id='e3000000-0000-4000-8000-000000000001';

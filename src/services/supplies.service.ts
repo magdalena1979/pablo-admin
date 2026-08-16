@@ -1,0 +1,18 @@
+import { supabase } from "@/lib/supabase"
+
+export interface SupplyOrder { id:string; farmId:string; farmName:string; name:string; date:string; status:string; hectares:number; inputId:string|null; itemName:string|null; unit:string|null; dose:number; required:number; reserved:number; missing:number; cost:number }
+export interface SupplyItem { id:string; farmId:string; name:string; unit:string; available:number }
+export interface PurchaseRequest { id:string; farmId:string; orderId:string|null; itemName:string; requestedOn:string; neededBy:string; quantity:number; unit:string; unitPrice:number; supplier:string|null; status:string }
+export interface NewPurchaseRequest { farmId:string; itemId:string; itemName:string; neededBy:string; quantity:number; unit:string; unitPrice:number; supplier?:string }
+function client(){if(!supabase)throw new Error("Supabase no está configurado.");return supabase}
+
+export const suppliesService={
+  async orders(farmId?:string|null):Promise<SupplyOrder[]>{let q=client().from("work_order_supply_status").select("*").order("operation_date");if(farmId)q=q.eq("farm_id",farmId);const{data,error}=await q;if(error)throw error;return(data??[]).map(x=>({id:x.id,farmId:x.farm_id,farmName:x.farm_name,name:x.order_name,date:x.operation_date,status:x.status,hectares:Number(x.worked_hectares??0),inputId:x.input_id,itemName:x.item_name,unit:x.unit,dose:Number(x.dose_per_hectare??0),required:Number(x.required_quantity??0),reserved:Number(x.reserved_quantity??0),missing:Number(x.missing_quantity??0),cost:Number(x.planned_input_cost??0)}))},
+  async items(farmId:string):Promise<SupplyItem[]>{const{data,error}=await client().from("inventory_position").select("id,farm_id,name,unit,available_quantity").eq("farm_id",farmId).order("name");if(error)throw error;return(data??[]).map(x=>({id:x.id,farmId:x.farm_id,name:x.name,unit:x.unit,available:Number(x.available_quantity)}))},
+  async requests(farmId?:string|null):Promise<PurchaseRequest[]>{let q=client().from("purchase_requests").select("*").order("needed_by");if(farmId)q=q.eq("farm_id",farmId);const{data,error}=await q;if(error)throw error;return(data??[]).map(x=>({id:x.id,farmId:x.farm_id,orderId:x.work_order_id,itemName:x.item_name,requestedOn:x.requested_on,neededBy:x.needed_by,quantity:Number(x.quantity),unit:x.unit,unitPrice:Number(x.estimated_unit_price_ars),supplier:x.suggested_supplier,status:x.status}))},
+  async createRequest(input:NewPurchaseRequest){const user=await client().auth.getUser();if(!user.data.user)throw new Error("Sesión inválida.");const{error}=await client().from("purchase_requests").insert({farm_id:input.farmId,item_id:input.itemId,work_order_id:null,needed_by:input.neededBy,item_name:input.itemName,quantity:input.quantity,unit:input.unit,estimated_unit_price_ars:input.unitPrice,suggested_supplier:input.supplier?.trim()||null,status:"pendiente",created_by:user.data.user.id});if(error)throw error},
+  async assign(orderId:string,itemId:string,dose:number){const{error}=await client().rpc("assign_work_order_input",{p_work_order_id:orderId,p_item_id:itemId,p_dose:dose});if(error)throw error},
+  async execute(orderId:string){const{error}=await client().rpc("execute_work_order",{p_work_order_id:orderId});if(error)throw error},
+  async changeRequestStatus(id:string,status:string){if(status==="recibida")return this.receiveRequest(id);const{error}=await client().from("purchase_requests").update({status}).eq("id",id);if(error)throw error},
+  async receiveRequest(id:string){const{error}=await client().rpc("receive_purchase_request",{p_request_id:id});if(error)throw error}
+}

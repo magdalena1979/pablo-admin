@@ -1,0 +1,55 @@
+-- Campaña histórica cerrada para análisis comparativo. Valores nominales de cierre.
+insert into public.campaigns(id,farm_id,name,starts_on,ends_on,active) values
+('31000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','2025/26','2025-06-01','2026-05-31',false),
+('31000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002','2025/26','2025-06-01','2026-05-31',false),
+('31000000-0000-4000-8000-000000000003','20000000-0000-4000-8000-000000000003','2025/26','2025-06-01','2026-05-31',false),
+('31000000-0000-4000-8000-000000000004','20000000-0000-4000-8000-000000000004','2025/26','2025-06-01','2026-05-31',false)
+on conflict(farm_id,name)do update set starts_on=excluded.starts_on,ends_on=excluded.ends_on,active=false;
+
+insert into public.campaign_performance(id,farm_id,campaign_id,productive_hectares,opening_weight_kg,closing_weight_kg,purchases_weight_kg,sales_weight_kg,transfers_in_kg,transfers_out_kg,livestock_revenue_ars,stock_variation_ars,livestock_direct_cost_ars,agriculture_revenue_ars,agriculture_direct_cost_ars,cash_balance_ars,target_kg_ha,target_margin_ha_ars,updated_by)
+select v.id,v.farm_id,v.campaign_id,v.ha,v.opening,v.closing,v.purchases,v.sales,0,v.transfers,v.livestock_revenue,v.stock_variation,v.livestock_cost,v.agri_revenue,v.agri_cost,v.cash,v.target_kg,v.target_margin,p.id from(values
+('c5100000-0000-4000-8000-000000000001'::uuid,'20000000-0000-4000-8000-000000000001'::uuid,'31000000-0000-4000-8000-000000000001'::uuid,1145::numeric,178600::numeric,235900::numeric,18600::numeric,58240::numeric,22200::numeric,116800000::numeric,18400000::numeric,61700000::numeric,162600000::numeric,107900000::numeric,32600000::numeric,90::numeric,44000::numeric),
+('c5200000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002','31000000-0000-4000-8000-000000000002',500,38700,62250,31600,47650,0,101300000,9700000,59400000,0,0,14200000,82,35000),
+('c5300000-0000-4000-8000-000000000003','20000000-0000-4000-8000-000000000003','31000000-0000-4000-8000-000000000003',1385,231400,302600,28400,91800,34100,184200000,26300000,103500000,287400000,189600000,58700000,95,57000),
+('c5400000-0000-4000-8000-000000000004','20000000-0000-4000-8000-000000000004','31000000-0000-4000-8000-000000000004',640,91700,128400,12500,47200,8900,92700000,12600000,55300000,0,0,16800000,84,37000)
+)v(id,farm_id,campaign_id,ha,opening,closing,purchases,sales,transfers,livestock_revenue,stock_variation,livestock_cost,agri_revenue,agri_cost,cash,target_kg,target_margin)
+cross join lateral(select id from public.profiles where role='super_admin'and active order by created_at limit 1)p
+on conflict(farm_id,campaign_id)do update set productive_hectares=excluded.productive_hectares,opening_weight_kg=excluded.opening_weight_kg,closing_weight_kg=excluded.closing_weight_kg,purchases_weight_kg=excluded.purchases_weight_kg,sales_weight_kg=excluded.sales_weight_kg,transfers_out_kg=excluded.transfers_out_kg,livestock_revenue_ars=excluded.livestock_revenue_ars,stock_variation_ars=excluded.stock_variation_ars,livestock_direct_cost_ars=excluded.livestock_direct_cost_ars,agriculture_revenue_ars=excluded.agriculture_revenue_ars,agriculture_direct_cost_ars=excluded.agriculture_direct_cost_ars,cash_balance_ars=excluded.cash_balance_ars,target_kg_ha=excluded.target_kg_ha,target_margin_ha_ars=excluded.target_margin_ha_ars,updated_at=now();
+
+insert into public.agricultural_cycles(id,farm_id,campaign_id,lot_id,crop,variety,sown_hectares,harvested_hectares,sowing_date,harvest_date,target_yield_kg_ha,produced_tons,sold_tons,livestock_feed_tons,other_use_tons,reference_price_ars_ton,status,notes,created_by)
+select v.id,v.farm_id,v.campaign_id,v.lot_id,v.crop,v.variety,v.ha,v.ha,v.sowing,v.harvest,v.target,v.produced,v.sold,v.feed,v.other_use,v.price,'cerrado'::public.crop_cycle_status,v.notes,p.id from(values
+('f5100000-0000-4000-8000-000000000001'::uuid,'20000000-0000-4000-8000-000000000001'::uuid,'31000000-0000-4000-8000-000000000001'::uuid,'40000000-0000-4000-8000-000000000003'::uuid,'Trigo pan','Baguette 620',280::numeric,'2025-06-20'::date,'2025-12-16'::date,4700::numeric,1288::numeric,920::numeric,0::numeric,0::numeric,285000::numeric,'Rinde 4.600 kg/ha; venta escalonada y saldo entregado'),
+('f5100000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000001','31000000-0000-4000-8000-000000000001','40000000-0000-4000-8000-000000000004','Maíz','Híbrido templado',305,'2025-10-18','2026-04-22',8200,2348.5,168,780,0,281000,'Parte conservada como grano propio para suplementación'),
+('f5300000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000003','31000000-0000-4000-8000-000000000003','40000000-0000-4000-8000-000000000012','Soja de primera','Grupo IV corto',425,'2025-11-05','2026-04-28',3400,1402.5,1080,0,0,505000,'Buen resultado con 3.300 kg/ha'),
+('f5300000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000003','31000000-0000-4000-8000-000000000003','40000000-0000-4000-8000-000000000013','Maíz','Híbrido VT3P',390,'2025-10-12','2026-04-12',8500,3198,2240,410,0,281000,'Rinde 8.200 kg/ha; 410 tn transferidas a ganadería'),
+('f5300000-0000-4000-8000-000000000003','20000000-0000-4000-8000-000000000003','31000000-0000-4000-8000-000000000003','40000000-0000-4000-8000-000000000014','Trigo pan','Baguette 620',275,'2025-06-24','2025-12-18',4600,1237.5,980,0,0,307800,'Calidad comercial estándar')
+)v(id,farm_id,campaign_id,lot_id,crop,variety,ha,sowing,harvest,target,produced,sold,feed,other_use,price,notes)
+cross join lateral(select id from public.profiles where role='super_admin'and active order by created_at limit 1)p
+on conflict(campaign_id,lot_id,crop)do update set produced_tons=excluded.produced_tons,sold_tons=excluded.sold_tons,livestock_feed_tons=excluded.livestock_feed_tons,status='cerrado',notes=excluded.notes;
+
+insert into public.livestock_cycles(id,farm_id,campaign_id,herd_id,lot_id,stage,starts_on,ends_on,assigned_hectares,opening_heads,opening_weight_kg,opening_price_ars_kg,purchased_heads,purchased_weight_kg,purchase_cost_ars,sold_heads,sold_weight_kg,deaths_heads,closing_heads,closing_weight_kg,closing_price_ars_kg,target_adg_kg,target_kg_ha,status,notes,created_by)
+select v.id,v.farm_id,v.campaign_id,v.herd_id,v.lot_id,v.stage::public.livestock_cycle_stage,'2025-06-01'::date,'2026-05-31'::date,v.ha,v.opening_heads,v.opening_weight,v.opening_price,v.purchased_heads,v.purchased_weight,v.purchase_cost,v.sold_heads,v.sold_weight,v.deaths,v.closing_heads,v.closing_weight,v.closing_price,v.target_adg,v.target_kg,'cerrado'::public.livestock_cycle_status,v.notes,p.id from(values
+('ac510000-0000-4000-8000-000000000001'::uuid,'20000000-0000-4000-8000-000000000001'::uuid,'31000000-0000-4000-8000-000000000001'::uuid,'50000000-0000-4000-8000-000000000001'::uuid,'40000000-0000-4000-8000-000000000001'::uuid,'cria',328.7::numeric,138,57960::numeric,2150::numeric,0,0::numeric,0::numeric,54,22680::numeric,3,81,37400::numeric,3150::numeric,.45::numeric,90::numeric,'Destete 86%; descarte de vacas y reposición propia'),
+('ac520000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002','31000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000003','40000000-0000-4000-8000-000000000006','recria',205,92,18400,2450,118,22800,55860000,96,34400,2,112,33050,3520,.61,82,'Recría pastoril; salida de 96 novillitos'),
+('ac530000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000003','31000000-0000-4000-8000-000000000003','50000000-0000-4000-8000-000000000006','40000000-0000-4000-8000-000000000011','terminacion',265,126,41580,2300,74,23800,58600000,128,56800,1,71,30300,3650,.82,95,'Terminación con maíz propio; 444 kg promedio de venta'),
+('ac540000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000004','31000000-0000-4000-8000-000000000004','50000000-0000-4000-8000-000000000007','40000000-0000-4000-8000-000000000017','cria',346,91,38220,2150,0,0,0,31,13020,2,58,26600,3150,.41,84,'Rodeo Angus; destete y venta de vacas vacías')
+)v(id,farm_id,campaign_id,herd_id,lot_id,stage,ha,opening_heads,opening_weight,opening_price,purchased_heads,purchased_weight,purchase_cost,sold_heads,sold_weight,deaths,closing_heads,closing_weight,closing_price,target_adg,target_kg,notes)
+cross join lateral(select id from public.profiles where role='super_admin'and active order by created_at limit 1)p
+on conflict(campaign_id,herd_id)do update set closing_heads=excluded.closing_heads,closing_weight_kg=excluded.closing_weight_kg,status='cerrado',notes=excluded.notes;
+
+insert into public.management_budgets(id,farm_id,campaign_id,activity,budget_revenue_ars,budget_cost_ars,forecast_revenue_ars,forecast_cost_ars,assumption_note,updated_by)
+select gen_random_uuid(),v.farm_id,v.campaign_id,v.activity::public.production_activity,v.revenue,v.cost,v.revenue,v.cost,'Campaña cerrada: valores realizados consolidados',p.id from(values
+('20000000-0000-4000-8000-000000000001'::uuid,'31000000-0000-4000-8000-000000000001'::uuid,'ganaderia',134400000::numeric,61700000::numeric),('20000000-0000-4000-8000-000000000001','31000000-0000-4000-8000-000000000001','agricultura',162600000,107900000),
+('20000000-0000-4000-8000-000000000002','31000000-0000-4000-8000-000000000002','ganaderia',111000000,59400000),('20000000-0000-4000-8000-000000000003','31000000-0000-4000-8000-000000000003','ganaderia',210500000,103500000),
+('20000000-0000-4000-8000-000000000003','31000000-0000-4000-8000-000000000003','agricultura',287400000,189600000),('20000000-0000-4000-8000-000000000004','31000000-0000-4000-8000-000000000004','ganaderia',105300000,55300000)
+)v(farm_id,campaign_id,activity,revenue,cost)cross join lateral(select id from public.profiles where role='super_admin'and active order by created_at limit 1)p
+on conflict(farm_id,campaign_id,activity)do update set forecast_revenue_ars=excluded.forecast_revenue_ars,forecast_cost_ars=excluded.forecast_cost_ars,assumption_note=excluded.assumption_note;
+
+insert into public.monthly_closures(id,farm_id,period_start,livestock_reconciled,inventory_reconciled,crops_updated,work_orders_updated,expenses_allocated,sales_updated,cash_reconciled,projections_reviewed,status,notes,updated_by)
+select v.id,v.farm_id,'2026-05-01',true,true,true,true,true,true,true,true,'cerrado','Cierre final validado de campaña 2025/26',p.id from(values
+('ce510000-0000-4000-8000-000000000001'::uuid,'20000000-0000-4000-8000-000000000001'::uuid),
+('ce520000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000002'),
+('ce530000-0000-4000-8000-000000000003','20000000-0000-4000-8000-000000000003'),
+('ce540000-0000-4000-8000-000000000004','20000000-0000-4000-8000-000000000004')
+)v(id,farm_id)cross join lateral(select id from public.profiles where role='super_admin'and active order by created_at limit 1)p
+on conflict(farm_id,period_start)do update set livestock_reconciled=true,inventory_reconciled=true,crops_updated=true,work_orders_updated=true,expenses_allocated=true,sales_updated=true,cash_reconciled=true,projections_reviewed=true,status='cerrado',notes=excluded.notes,updated_at=now();
