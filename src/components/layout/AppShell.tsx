@@ -1,16 +1,9 @@
-import { useEffect, useRef, useState, type ComponentType } from "react"
-import { NavLink, Outlet, useLocation } from "react-router-dom"
-import { Bell, Beef, Check, ChevronDown, Hammer, LayoutDashboard, Menu, Settings, ShieldCheck, Stethoscope, Tractor, X } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { NavLink, Outlet } from "react-router-dom"
+import { Bell, Beef, Check, ChevronDown, Menu, ShieldCheck, X } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFarmScope } from "@/app/providers/FarmScopeProvider"
 import { AutomaticTableTabs } from "@/components/layout/AutomaticTableTabs"
-
-type NavEntry=readonly[label:string,href:string,icon:ComponentType<{size?:number}>]
-const groups:{id:string;label:string;icon:ComponentType<{size?:number}>;items:readonly NavEntry[]}[]=[
-  {id:"produccion",label:"Producción",icon:Tractor,items:[["Hacienda","/hacienda",Beef],["Sanidad y reproducción","/sanidad",Stethoscope],["Labores y costos","/labores",Hammer]]},
-]
-
-function NavGroup({group,onNavigate}:{group:typeof groups[number];onNavigate():void}){const location=useLocation();const active=group.items.some(([,href])=>location.pathname.startsWith(href));const[expanded,setExpanded]=useState(active);useEffect(()=>{if(active)setExpanded(true)},[active]);const Icon=group.icon;return <div className={`nav-group ${active?"has-active":""}`}><button className="nav-group-trigger" onClick={()=>setExpanded(value=>!value)} aria-expanded={expanded}><Icon size={19}/><span>{group.label}</span><ChevronDown size={16} className={expanded?"chevron expanded":"chevron"}/></button>{expanded&&<div className="nav-children">{group.items.map(([label,href,ItemIcon])=><NavLink key={href} to={href} onClick={onNavigate} className={({isActive})=>isActive?"nav-item nav-child active":"nav-item nav-child"}><ItemIcon size={17}/>{label}</NavLink>)}</div>}</div>}
 
 export function AppShell() {
   const [open, setOpen] = useState(false)
@@ -28,8 +21,7 @@ export function AppShell() {
     <div className="app-frame" style={{"--farm-color":selectedFarm?.color??"#2D6AA3"} as React.CSSProperties}>
       <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
         <div className="brand"><div className="brand-mark">PM</div><div><strong>Pablo Mendivil</strong><span>Gestión agropecuaria</span></div><button className="mobile-close" onClick={() => setOpen(false)} aria-label="Cerrar menú"><X /></button></div>
-        <nav aria-label="Navegación principal"><NavLink to="/" end onClick={()=>setOpen(false)} className={({isActive})=>isActive?"nav-item nav-primary active":"nav-item nav-primary"}><LayoutDashboard size={19}/>Panel general</NavLink><div className="nav-divider"/><span className="nav-caption">ÁREAS DE TRABAJO</span>{groups.map(group=><NavGroup key={group.id} group={group} onNavigate={()=>setOpen(false)}/>)}</nav>
-        <NavLink to="/configuracion" onClick={()=>setOpen(false)} className={({isActive})=>isActive?"nav-item nav-settings active":"nav-item nav-settings"}><Settings size={19}/>Configuración</NavLink>
+        <nav aria-label="Navegación principal"><NavLink to="/hacienda" onClick={()=>setOpen(false)} className={({isActive})=>isActive?"nav-item nav-primary active":"nav-item nav-primary"}><Beef size={19}/>Ganadería</NavLink></nav>
       </aside>
       {open && <button className="backdrop" onClick={() => setOpen(false)} aria-label="Cerrar menú" />}
       <main className="main">
