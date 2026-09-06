@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState, type ComponentType } from "react"
 import { NavLink, Outlet, useLocation } from "react-router-dom"
-import { Bell, Beef, ChartNoAxesCombined, Check, ChevronDown, ClipboardCheck, CircleDollarSign, FolderKanban, GitCompareArrows, Hammer, History, LayoutDashboard, Menu, PackageOpen, ShoppingCart, Settings, ShieldCheck, Sprout, Stethoscope, Tractor, Wallet, X } from "lucide-react"
+import { Bell, Beef, Check, ChevronDown, Hammer, LayoutDashboard, Menu, Settings, ShieldCheck, Stethoscope, Tractor, X } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFarmScope } from "@/app/providers/FarmScopeProvider"
 import { AutomaticTableTabs } from "@/components/layout/AutomaticTableTabs"
 
 type NavEntry=readonly[label:string,href:string,icon:ComponentType<{size?:number}>]
 const groups:{id:string;label:string;icon:ComponentType<{size?:number}>;items:readonly NavEntry[]}[]=[
-  {id:"produccion",label:"Producción",icon:Tractor,items:[["Agricultura","/agricultura",Sprout],["Hacienda","/hacienda",Beef],["Decisión al destete","/decision-destete",GitCompareArrows],["Sanidad y reproducción","/sanidad",Stethoscope],["Labores y costos","/labores",Hammer]]},
-  {id:"gestion",label:"Gestión económica",icon:CircleDollarSign,items:[["Administración","/administracion",Wallet],["Ingresos y márgenes","/ingresos",CircleDollarSign],["Control de gestión","/control",ChartNoAxesCombined],["Campañas y comparativas","/campanias",History],["Existencias","/existencias",PackageOpen],["Compras e insumos","/insumos",ShoppingCart]]},
-  {id:"organizacion",label:"Organización",icon:FolderKanban,items:[["Tareas y alertas","/tareas",ClipboardCheck]]},
+  {id:"produccion",label:"Producción",icon:Tractor,items:[["Hacienda","/hacienda",Beef],["Sanidad y reproducción","/sanidad",Stethoscope],["Labores y costos","/labores",Hammer]]},
 ]
 
 function NavGroup({group,onNavigate}:{group:typeof groups[number];onNavigate():void}){const location=useLocation();const active=group.items.some(([,href])=>location.pathname.startsWith(href));const[expanded,setExpanded]=useState(active);useEffect(()=>{if(active)setExpanded(true)},[active]);const Icon=group.icon;return <div className={`nav-group ${active?"has-active":""}`}><button className="nav-group-trigger" onClick={()=>setExpanded(value=>!value)} aria-expanded={expanded}><Icon size={19}/><span>{group.label}</span><ChevronDown size={16} className={expanded?"chevron expanded":"chevron"}/></button>{expanded&&<div className="nav-children">{group.items.map(([label,href,ItemIcon])=><NavLink key={href} to={href} onClick={onNavigate} className={({isActive})=>isActive?"nav-item nav-child active":"nav-item nav-child"}><ItemIcon size={17}/>{label}</NavLink>)}</div>}</div>}

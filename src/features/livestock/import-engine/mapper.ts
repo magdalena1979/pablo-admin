@@ -1,0 +1,6 @@
+import { suggestField,type SystemField } from "@/features/livestock/import-engine/field-catalog"
+import type { ParsedCsv } from "@/features/livestock/import-engine/parser"
+export type ColumnMapping=Record<string,SystemField>
+export function suggestMapping(headers:string[]):ColumnMapping{return Object.fromEntries(headers.map(header=>[header,suggestField(header)]))}
+export function mappingSignature(headers:string[]){return [...headers].map(x=>x.trim().toLowerCase()).sort().join("|")}
+export function mapRows(document:ParsedCsv,mapping:ColumnMapping){const reverse=new Map<SystemField,string>();Object.entries(mapping).forEach(([header,field])=>{if(field!=="ignore")reverse.set(field,header)});return document.rows.map((raw,index)=>{const get=(field:SystemField)=>{const header=reverse.get(field);return header?raw[header]??"":""};return{rowNumber:index+2,raw,tagNumber:get("tagNumber"),electronicIdRaw:get("electronicId"),dateRaw:get("eventDate"),draftGroup:get("draftGroup"),notes:get("notes"),weightRaw:get("weight"),previousWeightRaw:get("previousWeight"),conditionRaw:get("bodyConditionScore"),pregnancyStatus:get("pregnancyStatus"),breed:get("breed"),sex:get("sex"),treatment:get("treatment"),doseRaw:get("dose"),doseUnit:get("doseUnit"),eventType:get("eventType"),operator:get("operator"),daysRaw:get("days"),weightGainRaw:get("weightGain"),adgRaw:get("adg")}})}
