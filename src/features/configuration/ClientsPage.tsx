@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/ui/Presentation"
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { UsersRound, ArrowLeft, Plus, Search, X } from "lucide-react"
+import { ArrowLeft, Plus, Search, X } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFarmScope } from "@/app/providers/FarmScopeProvider"
 import { clientsService, type ClientRecord, type FarmInput } from "@/services/clients.service"
@@ -26,7 +26,6 @@ export function ClientsPage() {
   const selectedId = params.get("cliente")
   function setSelectedId(id: string | null) { setParams(id ? { cliente: id } : {}) }
   const [query, setQuery] = useState("")
-  const [detailed, setDetailed] = useState(false)
   const [clientDraft, setClientDraft] = useState<typeof emptyClient | null>(null)
   const [editing, setEditing] = useState(false)
   const [farmDraft, setFarmDraft] = useState<typeof emptyFarm | null>(null)
@@ -52,12 +51,14 @@ export function ClientsPage() {
     finally { savingRef.current = false; setSaving(false) }
   }
   function closeDialogs() { if (savingRef.current) return; setClientDraft(null); setFarmDraft(null); setRenspaFarmId(null); setSaveError("") }
-  if (loading && !clients.length) return <section className="page"><div className="loading-panel">Cargando clientes…</div></section>
-  return <section className="page"><div className={selected ? "registration" : "registration clients-list"}>
+  if (loading && !clients.length) return <section className="page compact-list-page"><div className="loading-panel">Cargando clientes…</div></section>
+  return <section className="page compact-list-page"><div className={selected ? "registration" : "registration clients-list"}>
     {loadError && <div className="data-error" role="alert"><strong>No pudimos cargar los clientes</strong><span>{loadError}</span><button className="secondary-button" onClick={() => void load()}>Reintentar</button></div>}
     {selected ? <>
-      <button className="text-button registration-back" onClick={() => setSelectedId(null)}><ArrowLeft size={16}/>Volver a clientes</button>
-      <div className="page-heading"><div><span className="eyebrow">FICHA DEL CLIENTE</span><h1>{selected.legalName || "Cliente sin completar"}</h1><p>Datos del titular y sus establecimientos.</p></div>{canManage && <button className="secondary-button" onClick={() => { setSaveError(""); setEditing(true); setClientDraft({ ...selected, color: selected.color || "#2D6AA3" }) }}>Editar ficha</button>}</div>
+      <div className="compact-list-heading">
+        <button type="button" className="text-button compact-back" aria-label="Volver a Clientes" onClick={() => setSelectedId(null)}><ArrowLeft size={20} aria-hidden="true"/></button>
+        <PageHeader title={selected.legalName || "Cliente sin completar"} actions={canManage && <button type="button" className="secondary-button" onClick={() => { setSaveError(""); setEditing(true); setClientDraft({ ...selected, color: selected.color || "#2D6AA3" }) }}>Editar ficha</button>}/>
+      </div>
       <article className="panel"><dl className="client-details">{fields.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{selected[key] || "Sin completar"}</dd></div>)}</dl></article>
       <div className="page-heading registration-section-heading"><div><span className="eyebrow">ESTABLECIMIENTOS DEL CLIENTE</span><h2>Establecimientos</h2></div>{canManage && <button className="primary-button" onClick={() => { setSaveError(""); setFarmDraft({ ...emptyFarm }) }}><Plus size={17}/>Agregar establecimiento</button>}</div>
       {!selected.farms.length && <article className="panel empty-farms"><h2>Sin establecimientos</h2><p>Agregá un establecimiento y luego sus RENSPA.</p></article>}
@@ -66,10 +67,14 @@ export function ClientsPage() {
         {farm.renspas.length ? <div className="table-wrap"><table className="data-table"><caption className="client-table-caption">RENSPA de {farm.name || "este establecimiento"}</caption><thead><tr><th>RENSPA</th><th>CUIG</th><th>CV</th></tr></thead><tbody>{farm.renspas.map(row => <tr key={row.id}><td>{row.number || "Sin completar"}</td><td>{row.cuig || "Sin completar"}</td><td>{row.cv || "Sin completar"}</td></tr>)}</tbody></table></div> : <p className="client-empty-note">Este establecimiento todavía no tiene RENSPA.</p>}
       </article>)}
     </> : <>
-      <PageHeader title="Mis clientes" icon={<UsersRound size={27}/>} description="Fichas, establecimientos y RENSPA de tus clientes." actions={canManage && <button className="primary-button" onClick={() => { setSaveError(""); setEditing(false); setClientDraft({ ...emptyClient }) }}><Plus size={17}/>Nuevo cliente</button>}/>
-      <div className="toolbar"><div className="search"><Search size={18}/><input aria-label="Buscar clientes" placeholder="Buscar por cliente, contacto, establecimiento o RENSPA" value={query} onChange={e => setQuery(e.target.value)}/></div></div>
-      <div className="registration-overview-heading"><span>{clients.length} clientes · {clients.reduce((sum, client) => sum + client.farms.length, 0)} establecimientos</span><button className="secondary-button" onClick={() => setDetailed(value => !value)}>{detailed ? "Ver resumen" : "Ver todos los datos"}</button></div>
-      {visible.length ? detailed ? <ClientsGrid clients={visible} onOpen={setSelectedId}/> : <div className="clients-grid-frame"><div className="table-wrap"><table className="data-table"><thead><tr><th>Cliente</th><th>Establecimientos · Ingresá para trabajar</th><th>RENSPA</th><th>Contacto</th><th>Ficha</th></tr></thead><tbody>{visible.map(client => <tr key={client.id}><td><button className="text-button" onClick={() => setSelectedId(client.id)}>{client.legalName}</button></td><td>{client.farms.length ? client.farms.map(farm => <div className="client-overview-farm" key={farm.id}><Link to={`/establecimientos/${farm.id}`}>{farm.name} →</Link></div>) : "Sin establecimientos"}</td><td>{client.farms.reduce((sum, farm) => sum + farm.renspas.length, 0)}</td><td>{client.responsible || "Sin completar"}<small className="cell-note">{client.phone}</small></td><td><button className="secondary-button" onClick={() => setSelectedId(client.id)}>Ver cliente</button></td></tr>)}</tbody></table></div></div> : <article className="panel empty-farms"><h2>{clients.length ? "No encontramos clientes" : "Todavía no hay clientes"}</h2><p>{clients.length ? "Probá con otra búsqueda." : "Usá Nuevo cliente para completar la primera ficha."}</p></article>}
+      <div className="compact-list-heading">
+        <Link to="/inicio" className="text-button compact-back" aria-label="Volver a Inicio"><ArrowLeft size={20} aria-hidden="true"/></Link>
+        <PageHeader title="Mis clientes" actions={canManage && <button type="button" className="primary-button" aria-label="Nuevo cliente" title="Nuevo cliente" onClick={() => { setSaveError(""); setEditing(false); setClientDraft({ ...emptyClient }) }}><Plus size={20} aria-hidden="true"/></button>}/>
+      </div>
+      <div className="toolbar compact-list-search">
+        <label className="search"><Search size={16} aria-hidden="true"/><input type="search" aria-label="Buscar clientes" placeholder="Buscar cliente, contacto, establecimiento o RENSPA" value={query} onChange={e => setQuery(e.target.value)}/></label>
+      </div>
+      <ClientsGrid clients={visible} onOpen={setSelectedId} emptyMessage={clients.length ? "No hay clientes para esta búsqueda." : "Todavía no hay clientes registrados."}/>
     </>}
     {clientDraft && <RegistrationDialog title={editing ? "Editar ficha del cliente" : "Nuevo cliente"} onClose={closeDialogs}><form onSubmit={event => {
       event.preventDefault()

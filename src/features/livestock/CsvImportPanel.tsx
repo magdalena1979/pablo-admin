@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
-import { FileUp, X } from "lucide-react"
+import { ArrowLeft, FileUp, Plus, X } from "lucide-react"
 import { Link } from "react-router-dom"
+import { PageHeader } from "@/components/ui/Presentation"
 import { reviewGallagherCsv, type CsvFileReview } from "@/services/gallagher-csv-preview.service"
 import { confirmGallagherCsv, type CsvConfirmationResult } from "@/services/gallagher-csv-confirm.service"
 import { csvConfirmationBlocker, eligibleCsvBatch } from "./csv-confirmation"
@@ -130,12 +131,25 @@ export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId }: { onConf
   }
 
 
+  const importButtons = <div className="csv-import-buttons">
+    {sourceFiles.current.length > 0 && reviews && reviews.length > 1 &&
+      <button type="button" className="secondary-button" disabled={busy || confirming || readingShare} onClick={() => void review(sourceFiles.current)}>Revisar nuevamente</button>}
+    <button type="button" className={hasSharedCsv ? "secondary-button" : "primary-button"} disabled={busy || confirming || readingShare}
+      aria-label="Importar CSV" title={pageTitle ? "Importar CSV" : undefined} onClick={() => input.current?.click()}>
+      {pageTitle ? <><Plus size={20} aria-hidden="true"/><span className="csv-mobile-import-label">Importar CSV</span></> : <><FileUp size={17} aria-hidden="true"/>{busy ? "Revisando…" : "Importar CSV"}</>}
+    </button>
+  </div>
+
   return <section className={`drive-review-panel${pageTitle ? " csv-page-import" : ""}`} aria-label="Importación de CSV de Gallagher">
     {emptyNotice&&<EmptyCsvDialog names={emptyNotice.names} hasOtherFiles={emptyNotice.hasOtherFiles} onClose={()=>setEmptyNotice(null)} onChoose={()=>{setEmptyNotice(null);input.current?.click()}}/>}
-    <div className="drive-review-heading"><div>{pageTitle ? <div className="ui-page-title-group"><span className="ui-page-icon" aria-hidden="true"><FileUp size={27}/></span><h1>{pageTitle}</h1></div> : <><strong>Importar CSV de Gallagher</strong><p>Seleccioná los archivos de tu computadora. Se identifican cliente, establecimiento y RENSPA por las caravanas ya cargadas.</p></>}</div>
-      <input ref={input} type="file" accept=".csv,text/csv,text/comma-separated-values" multiple hidden onChange={event => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void review(files) }}/>
-      <div className="csv-import-buttons">{sourceFiles.current.length>0&&reviews&&reviews.length>1&&<button type="button" className="secondary-button" disabled={busy||confirming||readingShare} onClick={()=>void review(sourceFiles.current)}>Revisar nuevamente</button>}<button type="button" className={hasSharedCsv ? "secondary-button" : "primary-button"} disabled={busy || confirming || readingShare} onClick={() => input.current?.click()}><FileUp size={17}/>{busy ? "Revisando…" : "Importar CSV"}</button></div>
-    </div>
+    <input ref={input} type="file" accept=".csv,text/csv,text/comma-separated-values" multiple hidden onChange={event => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void review(files) }}/>
+    {pageTitle ? <div className="compact-list-heading">
+      <Link to="/inicio" className="text-button compact-back" aria-label="Volver a Inicio"><ArrowLeft size={20} aria-hidden="true"/></Link>
+      <PageHeader title={pageTitle} actions={importButtons}/>
+    </div> : <div className="drive-review-heading">
+      <div><strong>Importar CSV de Gallagher</strong><p>Seleccioná los archivos de tu computadora. Se identifican cliente, establecimiento y RENSPA por las caravanas ya cargadas.</p></div>
+      {importButtons}
+    </div>}
     {hasSharedCsv && <div className="csv-import-buttons">
       <button type="button" className="primary-button" disabled={busy || confirming || readingShare} onClick={() => void reviewSharedCsv()}>
         {readingShare ? "Revisando…" : "Revisar CSV compartido"}

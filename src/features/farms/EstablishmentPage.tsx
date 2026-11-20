@@ -1,4 +1,4 @@
-import { Beef, ClipboardList, Tag, MapPin, Upload } from "lucide-react"
+import { ClipboardList, Tag, MapPin, Upload } from "lucide-react"
 import { PageHeader, SectionHeading, Badge } from "@/components/ui/Presentation"
 import { useEffect, useState } from "react"
 import { Link, useParams, useSearchParams } from "react-router-dom"
@@ -57,12 +57,23 @@ export function EstablishmentPage() {
   if (error || !farm || !client) return <section className="page"><Link to="/clientes">Volver a clientes</Link><div className="data-error" role="alert">{error}<button className="secondary-button" onClick={() => setAttempt(value => value + 1)}>Reintentar</button></div></section>
   const visible = animals.filter(row => (!renspaId || row.renspas.some(registry => registry.id === renspaId)) && [row.tagNumber,row.electronicId,row.categoryName,row.herdName].join(" ").toLowerCase().includes(query.toLowerCase()))
   const works = sessions.filter(row => !renspaId || row.renspaIds.includes(renspaId))
-  return <section className="page establishment-page">
-    <div className="workspace-breadcrumb"><Link to={`/clientes?cliente=${client.id}`}>{client.legalName}</Link><span>/</span><strong>{farm.name}</strong></div>
-    <PageHeader title={tabs.find(([key])=>key===tab)?.[1]} icon={tab==="hacienda"?<Beef size={27}/>:tab==="trabajos"?<ClipboardList size={27}/>:tab==="caravanas"?<Tag size={27}/>:<MapPin size={27}/>} description={tab==="hacienda"?"Último valor registrado por dato, con su fecha. Abrí el historial para ver todos los trabajos.":[farm.address,farm.locality,farm.province].filter(Boolean).join(" · ") || "Ubicación sin completar"} actions={<Link className="primary-button" to="/hacienda"><Upload size={17}/>Importar archivos</Link>}/>
-    <div className="establishment-filter-bar"><label className="establishment-scope">RENSPA<select value={renspaId} onChange={event => change({ renspa:event.target.value })}><option value="">Todos los RENSPA</option>{farm.renspas.map(row => <option key={row.id} value={row.id}>{row.number}</option>)}</select></label>
-
-{tab === "hacienda" && <div className="toolbar"><label className="search"><input aria-label="Buscar animales del establecimiento" placeholder="Buscar caravana o EID" value={query} onChange={event => setQuery(event.target.value)}/></label></div>}</div>
+  const isHacienda = tab === "hacienda"
+  const renspaFilter = <select aria-label="Filtrar por RENSPA" value={renspaId} onChange={event => change({ renspa: event.target.value })}>
+    <option value="">Todos los RENSPA</option>
+    {farm.renspas.map(row => <option key={row.id} value={row.id}>{row.number}</option>)}
+  </select>
+  const heading = <PageHeader title={tabs.find(([key]) => key === tab)?.[1]}
+    icon={isHacienda ? undefined : tab === "trabajos" ? <ClipboardList size={27}/> : tab === "caravanas" ? <Tag size={27}/> : <MapPin size={27}/>}
+    actions={<Link className="primary-button" to="/hacienda"><Upload size={17}/>Importar archivos</Link>}/>
+  return <section className={`page establishment-page${isHacienda ? " compact-list-page establishment-hacienda" : ""}`}>
+    {isHacienda ? <div className="compact-list-heading">{heading}</div> : <>
+      <div className="workspace-breadcrumb"><Link to={`/clientes?cliente=${client.id}`}>{client.legalName}</Link><span>/</span><strong>{farm.name}</strong></div>
+      {heading}
+    </>}
+    {isHacienda ? <div className="toolbar compact-list-filters">
+      {renspaFilter}
+      <label className="search"><input type="search" aria-label="Buscar animales del establecimiento" placeholder="Buscar caravana o EID" value={query} onChange={event => setQuery(event.target.value)}/></label>
+    </div> : <div className="establishment-filter-bar"><label className="establishment-scope">RENSPA{renspaFilter}</label></div>}
     {tab === "hacienda" && <><EstablishmentAnimalsTable key={id} farmName={farm.name} farmId={id} rows={visible} onSelect={setSelected}/></>}
     {tab === "trabajos" && <article className="panel"><SectionHeading title="Sesiones registradas" aside={`${works.length} sesiones`}/><div className="table-wrap"><table className="data-table"><thead><tr><th>Fecha del trabajo</th><th>Sesión</th><th>RENSPA</th><th>Animales vinculados</th><th>Origen</th><th>Estado</th></tr></thead><tbody>{works.map(row => <tr key={row.id}><td>{new Date(row.session_date).toLocaleDateString("es-AR", { timeZone:"America/Argentina/Buenos_Aires" })}</td><td>{row.title}</td><td>{row.renspaIds.map(registry => farm.renspas.find(item => item.id === registry)?.number).filter(Boolean).join(", ") || "Sin vínculo registrado"}</td><td>{row.animals || "Sin vínculo registrado"}</td><td>{row.source}</td><td><Badge tone={row.status==="confirmada"?"success":row.status==="anulada"?"danger":"neutral"}>{row.status}</Badge></td></tr>)}{!works.length && <tr><td colSpan={6}>Todavía no hay sesiones para esta selección.</td></tr>}</tbody></table></div></article>}
     {tab === "caravanas" && <EarTagsPage key={`${id}:${renspaId}`} farmId={id} renspaId={renspaId}/>}

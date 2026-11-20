@@ -1,7 +1,67 @@
 /* Sidebar mechanics; visual tokens are shared in design-system.css. */
+#root .sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sidebar-profile {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+#root .sidebar-user .sidebar-notifications {
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 36px;
+  color: #c2c3da;
+}
+
+#root .sidebar-user .profile-trigger:hover,
+#root .sidebar-user .profile-trigger[aria-expanded="true"],
+#root .sidebar-user .sidebar-notifications:hover {
+  background: #ffffff12;
+  border-radius: 8px;
+}
+
+#root .sidebar-user .profile-summary > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#root .sidebar-user .profile-menu {
+  left: auto;
+  right: 0;
+  width: min(220px, calc(100vw - 32px));
+}
+
+#root .sidebar-user .profile-trigger > .chevron {
+  display: block;
+  flex-shrink: 0;
+}
+
 @media(min-width:761px){
 .app-frame .sidebar .brand{padding-right:4px;padding-left:4px}
 .app-frame .sidebar .brand-mark{flex:0 0 42px}
 .app-frame .sidebar .nav-item{overflow:hidden}
 .app-frame .sidebar .nav-item svg{flex:0 0 19px}
+
+#root .nav-is-collapsed .sidebar-user {
+  flex-direction: column;
+}
+
+#root .nav-is-collapsed .sidebar-user .profile-summary,
+#root .nav-is-collapsed .sidebar-user .profile-trigger > .chevron {
+  display: none;
+}
+
+#root .nav-is-collapsed .sidebar-user .profile-menu {
+  position: fixed;
+  left: calc(var(--ui-sidebar-collapsed) + 8px);
+  right: auto;
+  bottom: 24px;
+}
 }

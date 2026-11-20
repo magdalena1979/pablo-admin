@@ -1,2 +1,34 @@
 .establishment-page .page-heading{margin-top:24px}.establishment-scope{display:flex;align-items:center;gap:14px;margin:20px 0;font-size:14px;font-weight:600}.establishment-scope select{min-width:240px;padding:10px;border:1px solid #cbd5df;border-radius:6px;background:white;color:inherit}.establishment-page .ear-tags-page{padding:0}.establishment-page>.panel{padding:24px}.establishment-page .workspace-tabs{overflow-x:auto}.establishment-page .workspace-tabs button{white-space:nowrap}@media(max-width:600px){.establishment-scope{align-items:stretch;flex-direction:column}.establishment-scope select{min-width:0}}
 .page.establishment-page{max-width:none;width:100%;box-sizing:border-box;margin:0;padding:30px 24px;min-width:0}.establishment-page .establishment-animals{min-width:0;max-width:100%}.establishment-page .hacienda-animal-scroll{overflow:auto;max-width:100%;scrollbar-gutter:stable}.establishment-page .establishment-animal-grid{width:max-content;min-width:100%;table-layout:auto}.establishment-page .establishment-animal-grid th,.establishment-page .establishment-animal-grid td{min-width:150px}.establishment-page .hacienda-animal-scroll:focus-visible{outline:2px solid #2d6aa3;outline-offset:2px}@media(max-width:600px){.page.establishment-page{padding:20px 14px}}
+#root .establishment-hacienda .animal-overview-cards {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+#root .establishment-hacienda .animal-overview-cards article {
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+#root .establishment-hacienda .overview-icon {
+  flex-basis: 36px;
+  width: 36px;
+  height: 36px;
+}
+
+#root .establishment-hacienda .overview-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+#root .establishment-hacienda .animal-overview-cards strong {
+  font-size: 20px;
+}
+
+#root .establishment-hacienda .animal-view-toggle {
+  margin-bottom: 10px;
+}
+
+#root .establishment-hacienda .compact-list-filters .search {
+  width: 100%;
+}

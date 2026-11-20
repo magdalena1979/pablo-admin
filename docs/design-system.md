@@ -1,5 +1,16 @@
 # Sistema visual de la aplicación
 
+## Estándar para listados
+
+Caravanas, Sesiones de Gallagher, Clientes y Trabajos usan el mismo patrón. Aplicarlo a los nuevos listados y reutilizar los estilos globales al actualizar los existentes.
+
+Omitir las descripciones introductorias debajo del título. Mantener los datos de contexto, las instrucciones necesarias para completar acciones y los mensajes de estado, validación o error.
+
+- Contenedor `page compact-list-page` y encabezado `compact-list-heading` con `PageHeader`. El título de página usa 23 px. Cuando corresponde volver, usar `compact-back` con una flecha de 20 px y nombre accesible.
+- Controles de 42 px con texto de 14 px. Usar `toolbar compact-list-filters` para selectores del mismo ancho y `toolbar compact-list-search` para un buscador de ancho completo. El contenedor `search` dibuja el borde y el foco del buscador. Los selectores de la barra dejan 12 px entre la flecha y el borde.
+- Tabla con `panel data-panel`, `table-wrap` y `data-table`. El encabezado de columna usa 12 px y las celdas usan 13 px. Mantener las acciones de cada fila con `table-action` o `text-button` y mostrar los estados vacíos dentro de la tabla.
+- Los tamaños se definen en `src/styles/tokens.css` y se aplican en `src/styles/design-system.css`. Conservar en CSS local solo la distribución propia de cada vista. En pantallas angostas los filtros se acomodan en filas y la tabla admite desplazamiento horizontal.
+
 ## Alcance y auditoría
 
 Refactor exclusivamente de presentación. React 19, TypeScript, Vite, CSS/Tailwind, Lucide y Recharts existentes. Sin nuevas dependencias, migraciones, cambios de permisos ni contratos de servicios.
@@ -10,7 +21,7 @@ Rutas activas revisadas:
 | --- | --- |
 | `/login` | Autenticación y errores |
 | `/inicio` | Acciones y establecimientos, carga, búsqueda, vacío y error |
-| `/clientes` | Resumen, grilla, ficha, alta/edición, establecimiento y RENSPA |
+| `/clientes` | Grilla completa, ficha, alta/edición, establecimiento y RENSPA |
 | `/caravanas` | Recepciones, formulario, rangos y confirmación |
 | `/establecimientos/:id` | Hacienda, últimos valores/mensual, trabajos, caravanas y datos |
 | `/campos/:id` | Detalle anterior: resumen, lotes, hacienda, sanidad, administración y tareas |

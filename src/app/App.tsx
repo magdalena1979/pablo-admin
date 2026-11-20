@@ -14,6 +14,7 @@ import { FarmScopeProvider } from "@/app/providers/FarmScopeProvider"
 import { HealthPage } from "@/features/health/HealthPage"
 import { ConfigurationPage } from "@/features/configuration/ConfigurationPage"
 import { OperationsPage } from "@/features/operations/OperationsPage"
+import { ProfessionalWorksPage } from "@/features/operations/ProfessionalWorksPage"
 import "@/features/dashboard/position.css"
 import "@/features/dashboard/history.css"
 import "@/features/configuration/configuration.css"
@@ -32,6 +33,7 @@ export function App() {
           <Route path="hacienda/:sharedCsvId?" element={<GallagherFilesPage />} />
           <Route path="sanidad" element={<HealthPage />} />
           <Route path="labores" element={<OperationsPage />} />
+          <Route path="trabajos" element={<ProfessionalWorksPage />} />
           <Route path="configuracion" element={<ConfigurationPage />} />
         </Route>
       </Route>

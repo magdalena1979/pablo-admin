@@ -62,6 +62,9 @@ No ignorar una Skill claramente aplicable sin una razón.
 
 # Forma general de trabajo
 
+Para crear o modificar vistas, usar el [sistema visual del proyecto](docs/design-system.md).
+Los listados de Caravanas, Sesiones de Gallagher y Clientes son la referencia para encabezados, buscadores, filtros y tablas.
+
 Para funcionalidades medianas o grandes, NO comenzar escribiendo código inmediatamente.
 
 Primero:

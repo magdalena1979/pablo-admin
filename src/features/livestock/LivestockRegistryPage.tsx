@@ -30,7 +30,7 @@ export function LivestockRegistryPage() {
   }, [reload])
   const visible = useMemo(() => filterHacienda(animals, filters), [animals, filters])
   const options = useMemo(() => haciendaFilterOptions(animals, filters), [animals, filters.clientId, filters.farmId])
-  return <section className="page"><div className="page-heading"><div><span className="eyebrow">HACIENDA REGISTRADA</span><h1>Hacienda</h1><p>Importá los CSV de Gallagher y revisá sus coincidencias con las caravanas dadas de alta.</p></div></div>
+  return <section className="page"><div className="page-heading"><div><span className="eyebrow">HACIENDA REGISTRADA</span><h1>Hacienda</h1></div></div>
     <CsvImportPanel onConfirmed={() => setReload(value => value + 1)}/>
     {error && <div className="data-error" role="alert"><strong>No pudimos cargar los animales</strong><span>{error}</span></div>}
     {loading ? <div className="loading-panel">Cargando hacienda…</div> : !error && <>
