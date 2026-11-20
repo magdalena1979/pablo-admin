@@ -1,0 +1,7 @@
+/* Sidebar mechanics; visual tokens are shared in design-system.css. */
+@media(min-width:761px){
+.app-frame .sidebar .brand{padding-right:4px;padding-left:4px}
+.app-frame .sidebar .brand-mark{flex:0 0 42px}
+.app-frame .sidebar .nav-item{overflow:hidden}
+.app-frame .sidebar .nav-item svg{flex:0 0 19px}
+}

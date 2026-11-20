@@ -1,0 +1,43 @@
+import test from "node:test"
+import assert from "node:assert/strict"
+import { csvConfirmationBlocker, csvConfirmationPayload } from "../src/features/livestock/csv-confirmation.ts"
+
+function review() {
+  return { file:{id:"local-id",name:"TOROS 2.csv",size:500},hash:"a".repeat(64),headers:["ID electrónico","Número de etiqueta","Fecha","Time","Notas","TONO"],
+    rawRows:[{"ID electrónico":"032 010006501857","Número de etiqueta":"1857",Fecha:"2025-05-10",Time:"11:35:00",Notas:"Nota original",TONO:"Yes"}],empty:false,error:"",
+    rows:[{row:2,eid:"032010006501857",tag:"1857",date:"2025-05-10",time:"11:35:00",sex:"",error:"",result:"coincidencia",detail:"Coincidencia",
+      registration:{eid:"032010006501857",status:"disponible",sex:"macho",client:"Cliente Test",clientId:"client-a",farm:"San Ignacio",farmId:"farm-a",renspa:"TEST-1",renspaId:"renspa-a"}}] }
+}
+test("confirmation preserves original columns, explicit timestamps and ownership snapshot",()=>{
+  const file=review(),before=structuredClone(file)
+  assert.equal(csvConfirmationBlocker(file),"")
+  const payload=csvConfirmationPayload(file)
+  assert.equal(payload.p_rows[0].expectedSex,"macho")
+  assert.equal(payload.p_rows[0].sex,"")
+  assert.equal(payload.p_rows[0].expectedClientId,"client-a")
+  assert.equal(payload.p_rows[0].rawCsv.TONO,"Yes")
+  assert.equal(payload.p_rows[0].notes,"Nota original")
+  assert.equal(payload.p_rows[0].time,"11:35:00")
+  assert.deepEqual(file,before)
+})
+test("any problematic row blocks the complete file, without filtering it out",()=>{
+  for(const result of ["conflicto","sin_alta","error"]){
+    const file=review();file.rows.push({...file.rows[0],row:3,result})
+    assert.throws(()=>csvConfirmationPayload(file),/conflictos/)
+  }
+})
+test("empty files, missing snapshots/hash/raw source and calendar errors cannot be sent",()=>{
+  const cases=[
+    file=>{file.empty=true},file=>{file.hash=""},file=>{file.rows[0].registration.clientId=""},
+    file=>{file.rows[0].date="2025-02-31"},file=>{file.rows[0].time="25:00:00"},file=>{file.rawRows=[]},
+  ]
+  for(const modify of cases){const file=review();modify(file);assert.throws(()=>csvConfirmationPayload(file))}
+})
+test("multiple owners are transmitted intact for server-side session separation",()=>{
+  const file=review();file.rows.push({...file.rows[0],row:3,eid:"032010006501858",tag:"1858",registration:{...file.rows[0].registration,clientId:"client-b",farmId:"farm-b",renspaId:"renspa-b",sex:"hembra"}})
+  file.rawRows.push({...file.rawRows[0],"ID electrónico":"032010006501858","Número de etiqueta":"1858"})
+  const payload=csvConfirmationPayload(file)
+  assert.equal(payload.p_rows.length,2)
+  assert.equal(payload.p_rows[1].expectedRenspaId,"renspa-b")
+  assert.equal(payload.p_rows[1].expectedSex,"hembra")
+})

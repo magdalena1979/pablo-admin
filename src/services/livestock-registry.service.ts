@@ -6,7 +6,7 @@ import { adaptGallagherAnimalHistory, isGallagherAnimalHistory, type GallagherEx
 import { adaptGallagherSessionExport, isGallagherSessionExport } from "@/features/livestock/import-engine/gallagher-session-export"
 
 export type ImportStatus = "NUEVO"|"EXISTENTE"|"ERROR"|"DUPLICADO"|"CONFLICTO"|"REVERTIDO"
-export interface AnimalRow { id:string; farmId:string; tagNumber:string; electronicId:string|null; electronicIdRaw:string|null; sex:string|null; breed:string|null; status:string; categoryName:string|null; herdName:string|null; lastEvent:string|null; lastEventDate:string|null }
+export interface AnimalRow { id:string; farmId:string; farmName:string|null; clientId:string|null; clientName:string|null; renspas:Array<{id:string;number:string}>; tagNumber:string; electronicId:string|null; electronicIdRaw:string|null; sex:string|null; breed:string|null; status:string; categoryName:string|null; herdName:string|null; lastEvent:string|null; lastEventDate:string|null }
 export interface AnimalEvent { id:string; type:string; date:string; source:string; notes:string|null; metadata:Record<string,unknown> }
 export interface GallagherRow { rowNumber:number; tagNumber:string; electronicIdRaw:string; electronicId:string; eventDate:string; draftGroup:string; notes:string; status:ImportStatus|"ACTUALIZAR"; message?:string; animalId?:string; reactivate?:boolean; raw:Record<string,unknown>; detectedEventTypes:string[]; weight:number|null; previousWeight:number|null; bodyConditionScore:number|null; days:number|null; weightGain:number|null; adg:number|null; pregnancyStatus:string; breed:string; sex:string; treatment:string; dose:number|null; doseUnit:string; operator:string; externalEvents:GallagherExternalEvent[]; uninterpretedValues:Array<{field:string;value:string}> }
 export interface ParsedLivestockImport { document:ParsedCsv; mapping:ColumnMapping; rows:GallagherRow[]; detectedDate:string|null; format:"animal_history"|"session_export"|"generic"; externalSessions:string[] }
@@ -34,7 +34,30 @@ export async function parseGallagherCsv(file:File,mapping?:ColumnMapping,fallbac
 export function remapLivestockCsv(document:ParsedCsv,mapping:ColumnMapping,fallbackDate=""):GallagherRow[]{if(isGallagherAnimalHistory(document))return adaptGallagherAnimalHistory(document).map(row=>({...row,status:"NUEVO",weight:null,previousWeight:null,bodyConditionScore:null,days:null,weightGain:null,adg:null,pregnancyStatus:"",breed:String(row.raw.Breed??""),sex:String(row.raw.Sex??""),treatment:"",dose:null,doseUnit:"",operator:""})) as GallagherRow[];if(isGallagherSessionExport(document))return adaptGallagherSessionExport(document).map(row=>({...row,status:row.eventDate?"NUEVO":"ERROR",message:row.eventDate?undefined:"Fecha u hora inválida",weight:null,previousWeight:null,bodyConditionScore:null,days:null,weightGain:null,adg:null,pregnancyStatus:"",breed:"",sex:"",treatment:"",dose:null,doseUnit:"",operator:""})) as GallagherRow[];return(validateRows(mapRows(document,mapping),fallbackDate) as Omit<GallagherRow,"externalEvents"|"uninterpretedValues">[]).map(row=>({...row,externalEvents:[],uninterpretedValues:[]}))}
 
 export const livestockRegistryService={
- async animals(farmId?:string|null):Promise<AnimalRow[]>{let query=client().from("animals").select("id,farm_id,tag_number,electronic_id,electronic_id_raw,sex,breed,status,livestock_categories(name),herds(name),animal_events(event_type,event_date)").eq("active",true).is("reverted_at",null).is("animal_events.voided_at",null).order("tag_number");if(farmId)query=query.eq("farm_id",farmId);const{data,error}=await query;if(error)throw error;return(data??[]).map(row=>{const events=[...(row.animal_events??[])].sort((a,b)=>String(b.event_date).localeCompare(String(a.event_date)));return{id:row.id,farmId:row.farm_id,tagNumber:row.tag_number,electronicId:row.electronic_id,electronicIdRaw:row.electronic_id_raw,sex:row.sex,breed:row.breed,status:row.status,categoryName:one(row.livestock_categories)?.name??null,herdName:one(row.herds)?.name??null,lastEvent:events[0]?.event_type??null,lastEventDate:events[0]?.event_date??null}})},
+ async animals(farmId?:string|null):Promise<AnimalRow[]> {
+  const animals:AnimalRow[]=[]
+  let offset=0,more=true
+  while(more){
+   let query=client().from("animals").select("id,farm_id,tag_number,electronic_id,electronic_id_raw,sex,breed,status,livestock_categories(name),herds(name),animal_events(event_type,event_date),farms(name,client_id,clients(legal_name)),ear_tags(ear_tag_ranges(ear_tag_receipts(farm_renspas(id,number,farm_id))))").eq("active",true).is("reverted_at",null).is("animal_events.voided_at",null).order("id").range(offset,offset+999)
+   if(farmId)query=query.eq("farm_id",farmId)
+   const{data,error}=await query
+   if(error)throw error
+   for(const row of data??[]){
+    const farm=one(row.farms),owner=one(farm?.clients??null)
+    const renspas=new Map<string,{id:string;number:string}>()
+    for(const tag of row.ear_tags??[]){
+     const range=one(tag.ear_tag_ranges),receipt=one(range?.ear_tag_receipts??null),registry=one(receipt?.farm_renspas??null)
+     if(registry&&registry.farm_id===row.farm_id)renspas.set(registry.id,{id:registry.id,number:registry.number})
+    }
+    const events=[...(row.animal_events??[])].sort((a,b)=>String(b.event_date).localeCompare(String(a.event_date)))
+    animals.push({id:row.id,farmId:row.farm_id,farmName:farm?.name??null,clientId:farm?.client_id??null,clientName:owner?.legal_name??null,
+     renspas:[...renspas.values()].sort((a,b)=>a.number.localeCompare(b.number)),tagNumber:row.tag_number,electronicId:row.electronic_id,electronicIdRaw:row.electronic_id_raw,sex:row.sex,breed:row.breed,status:row.status,
+     categoryName:one(row.livestock_categories)?.name??null,herdName:one(row.herds)?.name??null,lastEvent:events[0]?.event_type??null,lastEventDate:events[0]?.event_date??null})
+   }
+   more=(data?.length??0)===1000;offset+=1000
+  }
+  return animals.sort((a,b)=>a.tagNumber.localeCompare(b.tagNumber,"es",{numeric:true}))
+ },
  async events(animalId:string):Promise<AnimalEvent[]>{const{data,error}=await client().from("animal_events").select("id,event_type,event_date,source,notes,metadata").eq("animal_id",animalId).is("voided_at",null).order("event_date",{ascending:false});if(error)throw error;return(data??[]).map(x=>({id:x.id,type:x.event_type,date:x.event_date,source:x.source,notes:x.notes,metadata:x.metadata??{}}))},
  async imports(farmId?:string|null):Promise<ImportHistory[]>{let q=client().from("livestock_imports").select("id,filename,imported_at,total_rows,created_animals,existing_animals,error_rows,status").order("imported_at",{ascending:false}).limit(20);if(farmId)q=q.eq("farm_id",farmId);const{data,error}=await q;if(error)throw error;return(data??[]).map(x=>({id:x.id,filename:x.filename,importedAt:x.imported_at,total:x.total_rows,created:x.created_animals,existing:x.existing_animals,errors:x.error_rows,status:x.status}))},
  async classify(farmId:string,rows:GallagherRow[]):Promise<GallagherRow[]>{const ids=[...new Set(rows.map(r=>r.electronicId).filter(Boolean))];if(!ids.length)return rows;const{data,error}=await client().from("animals").select("electronic_id,tag_number").eq("farm_id",farmId).in("electronic_id",ids);if(error)throw error;const found=new Map((data??[]).map(x=>[x.electronic_id,x.tag_number]));return rows.map(row=>{if(row.status!=="NUEVO")return row;const tag=found.get(row.electronicId);const status:ImportStatus=tag===row.tagNumber||!row.tagNumber?"EXISTENTE":"CONFLICTO";return tag==null?row:{...row,status,message:tag!==row.tagNumber?`El EID ya pertenece a la caravana ${tag}`:undefined}})},

@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="propuesta-pablo" name="Propuesta para Pablo">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1500" pageHeight="1750" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;strokeColor=none;fillColor=none;" value="&lt;b&gt;Flujo de registro de caravanas&lt;/b&gt;" vertex="1">
+          <mxGeometry height="150" width="1400" y="25" as="geometry" />
+        </mxCell>
+        <mxCell id="step1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;" value="&lt;b&gt;1  Alta establecimientos&lt;/b&gt;&lt;br&gt;&lt;br&gt;Pablo registra cliente / razón social y sus establecimientos. Definir cómo se vinculan CUIT, campo y RENSPA.&amp;nbsp;&lt;div&gt;Un cliente tiene mas de un campo?&amp;nbsp;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="200" width="650" x="45" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="step2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;" value="&lt;b&gt;2  Remito y carga manual del rango&lt;/b&gt;&lt;br&gt;&lt;br&gt;&amp;nbsp;Subir remito, el sistema lee los datos y si son carvanas habilita un campo para registrar la nuemracion (desde - hasta)&lt;div&gt;Los EID ya quedan viculados a ese cliente.&lt;/div&gt;&lt;div&gt;Aca piendo que cuando detecta una razon social/cuit si ese cuit tiene mas de un establecimientos poder seleccionar para cual van las caravanas.&lt;/div&gt;" vertex="1">
+          <mxGeometry height="200" width="650" x="45" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="step4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;" value="&lt;b&gt;3  Trabajo a campo y exportación&lt;/b&gt;&lt;br&gt;&lt;br&gt;Pablo trabaja con Gallagher y exporta las sesiones CSV a una carpeta de Drive. Confirmar cómo identifica cliente y campo en cada sesión." vertex="1">
+          <mxGeometry height="200" width="650" x="45" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="step5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;" value="&lt;b&gt;4  Archivos para revisar&lt;/b&gt;&lt;br&gt;&lt;br&gt;El sistema consulta la carpeta autorizada y prepara el análisis. Propuesta inicial: botón Revisar Drive.&amp;nbsp;" vertex="1">
+          <mxGeometry height="200" width="650" x="800" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="step8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;" value="&lt;b&gt;5  Vista previa y confirmación&lt;/b&gt;&lt;br&gt;&lt;br&gt;Mostrar cliente y campo propuestos, altas, lecturas, trabajos y conflictos. Confirmar contexto y datos antes de escribir en la base." vertex="1">
+          <mxGeometry height="200" width="650" x="800" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="step10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;" value="&lt;b&gt;6  Seguimiento y documentos&lt;/b&gt;&lt;br&gt;&lt;br&gt;Vincular factura al remito sin duplicar stock. Movimientos y declaración SENASA se registran con confirmación o respaldo separados." vertex="1">
+          <mxGeometry height="200" width="650" x="800" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="rules" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF1F7;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;" value="&lt;b&gt;Reglas propuestas&lt;/b&gt;&lt;br&gt;&lt;br&gt;Compra ≠ colocación ≠ lectura ≠ movimiento ≠ declaración SENASA.&lt;br&gt;Conservar UUID e historial ante reemplazos. No inferir fechas ni traslados desde nombres de archivos." vertex="1">
+          <mxGeometry height="150" width="1405" x="45" y="960" as="geometry" />
+        </mxCell>
+        <mxCell id="questions1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF5E5;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;" value="&lt;b&gt;Preguntas sobre la operación&lt;/b&gt;&lt;br&gt;&lt;br&gt;¿Cómo vincular razón social, cliente, campo y RENSPA?&lt;br&gt;¿El rango manual es EID o visual? ¿De dónde se obtiene y cómo se vincula con el EID?&lt;br&gt;¿Compra para un destino o distribuye stock?&lt;br&gt;¿Una sesión puede mezclar campos o clientes?" vertex="1">
+          <mxGeometry height="300" width="680" x="45" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="questions2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF5E5;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;" value="&lt;b&gt;Preguntas sobre eventos y responsables&lt;/b&gt;&lt;br&gt;&lt;br&gt;¿Qué significa Nueva etiqu. y cómo acredita colocación?&lt;br&gt;¿Cómo registra animales comprados y reemplazos?&lt;br&gt;¿Quién confirma importaciones, movimientos y SENASA?&lt;br&gt;¿Qué cuenta, carpeta y permisos de Drive usarían?" vertex="1">
+          <mxGeometry height="300" width="680" x="770" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="scope" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B8C8D6;fontColor=#263649;fontFamily=Arial;fontSize=18;align=left;verticalAlign=top;spacing=18;strokeColor=none;fillColor=none;" value="&lt;b&gt;Alcance inicial sugerido&lt;/b&gt;&lt;br&gt;&lt;br&gt;Revisar remito + carga manual desde–hasta + CSV con un caso real. Confirmar el tipo de identificador antes de cruzar el rango. Resto sujeto a revisión con Pablo." vertex="1">
+          <mxGeometry height="150" width="1405" x="45" y="1500" as="geometry" />
+        </mxCell>
+      <mxCell id="newedge0" edge="1" parent="1" source="step1" target="step2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#436B83;strokeWidth=3;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;"><mxGeometry as="geometry" relative="1" /></mxCell><mxCell id="newedge1" edge="1" parent="1" source="step2" target="step4" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#436B83;strokeWidth=3;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;"><mxGeometry as="geometry" relative="1" /></mxCell><mxCell id="newedge2" edge="1" parent="1" source="step4" target="step5" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#436B83;strokeWidth=3;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry as="geometry" relative="1"><Array as="points"><mxPoint x="745" y="780" /><mxPoint x="745" y="300" /></Array></mxGeometry></mxCell><mxCell id="newedge3" edge="1" parent="1" source="step5" target="step8" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#436B83;strokeWidth=3;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;"><mxGeometry as="geometry" relative="1" /></mxCell><mxCell id="newedge4" edge="1" parent="1" source="step8" target="step10" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#436B83;strokeWidth=3;endArrow=block;exitX=0.5;exitY=1;entryX=0.5;entryY=0;"><mxGeometry as="geometry" relative="1" /></mxCell></root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
