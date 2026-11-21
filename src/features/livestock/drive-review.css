@@ -9,3 +9,32 @@
 @media (max-width: 760px) {
   .csv-mobile-import-label { display: inline; }
 }
+
+.csv-shared-intake {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.csv-shared-intake-heading {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.csv-shared-intake-heading .icon-button {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--ui-radius-sm);
+}
+
+@media (max-width: 760px) {
+  .csv-shared-intake { display: grid; gap: 4px; }
+  .csv-shared-intake > .primary-button { justify-content: center; }
+}

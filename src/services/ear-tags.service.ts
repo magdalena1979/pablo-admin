@@ -41,4 +41,14 @@ export const earTagsService = {
     if (error) throw error
     return data as string
   },
+  async registerGallagher(input: {
+    groupId: string; renspaId: string; sex: CheckedTagRange["sex"]; eids: string[]
+    fileHash: string; filename: string
+  }) {
+    const { error } = await db().rpc("register_gallagher_tags", {
+      p_group_id: input.groupId, p_renspa_id: input.renspaId, p_sex: input.sex,
+      p_eids: input.eids, p_file_hash: input.fileHash, p_filename: input.filename,
+    })
+    if (error) throw error
+  },
 }

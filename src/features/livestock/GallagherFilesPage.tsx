@@ -3,14 +3,20 @@ import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { CsvImportPanel } from "./CsvImportPanel"
+import "./gallagher-files.css"
 type SavedSession={id:string;date:string;title:string;filename:string;farmId:string;farm:string;clientId:string;client:string;renspas:string[];male:number;female:number;animals:number;status:string}
 function one<T>(value:T|T[]|null|undefined):T|undefined{return Array.isArray(value)?value[0]:value??undefined}
+function sessionDate(value: string) { return value.slice(0, 10).split("-").reverse().join("/") }
+function SessionStatus({ status }: { status: string }) {
+ return <Badge tone={status === "confirmada" ? "success" : status === "anulada" ? "danger" : "neutral"}>{status}</Badge>
+}
 export function GallagherFilesPage(){
  const {sharedCsvId}=useParams()
  const [sessions,setSessions]=useState<SavedSession[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState("")
  const [reload,setReload]=useState(0)
  const [clientId,setClientId]=useState(""),[farmId,setFarmId]=useState("")
  const [renspa,setRenspa]=useState(""),[status,setStatus]=useState("")
+ const [filtersOpen, setFiltersOpen] = useState(false)
  useEffect(()=>{let active=true;setLoading(true);setError("")
  async function load(){
   if(!supabase)throw new Error("Supabase no está configurado.")
@@ -38,29 +44,34 @@ export function GallagherFilesPage(){
  const renspas = [...new Set(farmSessions.flatMap(row => row.renspas))]
  const statuses = [...new Set(sessions.map(row => row.status))]
  const visible = farmSessions.filter(row => (!renspa || row.renspas.includes(renspa)) && (!status || row.status === status))
- return <section className="page compact-list-page">
+ const filterCount = [clientId, farmId, renspa, status].filter(Boolean).length
+ return <section className="page compact-list-page gallagher-files-page">
  <CsvImportPanel key={sharedCsvId} sharedCsvId={sharedCsvId} pageTitle="Sesiones de Gallagher" onConfirmed={()=>setReload(value=>value+1)}/>
  {loading ? <div className="loading-panel" role="status">Cargando sesiones…</div> : error ?
    <div className="data-error" role="alert">{error}<button className="secondary-button" onClick={()=>setReload(value=>value+1)}>Reintentar</button></div> : <>
-     <div className="toolbar compact-list-filters">
+     <button type="button" className="secondary-button gallagher-filter-toggle" aria-expanded={filtersOpen}
+       aria-controls="gallagher-filters" onClick={() => setFiltersOpen(value => !value)}>
+       Filtros{filterCount > 0 && ` (${filterCount})`}
+     </button>
+     <div id="gallagher-filters" className="toolbar compact-list-filters" data-expanded={filtersOpen}>
        <select aria-label="Filtrar por cliente" value={clientId} onChange={event => { setClientId(event.target.value); setFarmId(""); setRenspa("") }}>
-         <option value="">Todos los clientes</option>
+         <option value="">Cliente</option>
          {[...clients].map(([id, name]) => <option key={id} value={id}>{name}</option>)}
        </select>
        <select aria-label="Filtrar por establecimiento" value={farmId} onChange={event => { setFarmId(event.target.value); setRenspa("") }}>
-         <option value="">Todos los establecimientos</option>
+         <option value="">Establecimiento</option>
          {[...farms].map(([id, name]) => <option key={id} value={id}>{name}</option>)}
        </select>
        <select aria-label="Filtrar por RENSPA" value={renspa} onChange={event => setRenspa(event.target.value)}>
-         <option value="">Todos los RENSPA</option>
+         <option value="">RENSPA</option>
          {renspas.map(number => <option key={number}>{number}</option>)}
        </select>
        <select aria-label="Filtrar por estado" value={status} onChange={event => setStatus(event.target.value)}>
-         <option value="">Todos los estados</option>
+         <option value="">Estado</option>
          {statuses.map(value => <option key={value}>{value}</option>)}
        </select>
      </div>
-     <div className="panel data-panel">
+     <div className="panel data-panel gallagher-desktop-table">
        <div className="table-wrap">
          <table className="data-table" aria-label="Sesiones de Gallagher">
            <thead><tr>
@@ -70,18 +81,35 @@ export function GallagherFilesPage(){
            </tr></thead>
            <tbody>
              {visible.map(row => <tr key={row.id}>
-               <td>{new Date(row.date).toLocaleDateString("es-AR", {timeZone:"America/Argentina/Buenos_Aires"})}</td>
+               <td>{sessionDate(row.date)}</td>
                <td>{row.filename || row.title}</td><td>{row.client}</td>
                <td><Link to={`/establecimientos/${row.farmId}?tab=trabajos`}>{row.farm} →</Link></td>
                <td>{row.renspas.join(", ") || "Sin vínculo registrado"}</td><td>{row.animals || "Sin vínculo registrado"}</td>
                <td>{row.male}</td><td>{row.female}</td>
-               <td><Badge tone={row.status === "confirmada" ? "success" : row.status === "anulada" ? "danger" : "neutral"}>{row.status}</Badge></td>
+               <td><SessionStatus status={row.status}/></td>
              </tr>)}
              {!visible.length && <tr><td colSpan={9}>No hay sesiones para mostrar.</td></tr>}
            </tbody>
          </table>
        </div>
      </div>
+     <ul className="gallagher-mobile-sessions" aria-label="Sesiones de Gallagher">
+       {visible.map(row => <li key={row.id} className="panel">
+         <div className="gallagher-session-date"><time dateTime={row.date.slice(0, 10)}>{sessionDate(row.date)}</time><SessionStatus status={row.status}/></div>
+         <strong className="gallagher-session-file">{row.filename || row.title}</strong>
+         <p><Link to={`/establecimientos/${row.farmId}?tab=trabajos`}>{row.farm}</Link> · {row.client}</p>
+         <details>
+           <summary>Ver detalle</summary>
+           <dl>
+             <dt>RENSPA</dt><dd>{row.renspas.join(", ") || "Sin vínculo registrado"}</dd>
+             <dt>Animales vinculados</dt><dd>{row.animals || "Sin vínculo registrado"}</dd>
+             <dt>Machos</dt><dd>{row.male}</dd>
+             <dt>Hembras</dt><dd>{row.female}</dd>
+           </dl>
+         </details>
+       </li>)}
+       {!visible.length && <li className="panel">No hay sesiones para mostrar.</li>}
+     </ul>
    </>}
  </section>
 }

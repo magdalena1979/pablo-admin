@@ -22,7 +22,8 @@ await db.exec(`
 `)
 try {
   const dir = resolve("supabase/migrations")
-  const migrations = (await readdir(dir)).filter(name => name.endsWith(".sql") && !name.includes("demo") && Number(name.slice(0,3)) <= 47).sort()
+  const migrations = (await readdir(dir)).filter(name => name.endsWith(".sql") && !name.includes("demo") &&
+    (Number(name.slice(0,3)) <= 47 || name.startsWith("053_"))).sort()
   for (const name of migrations) {
     // gen_random_uuid is built into this PostgreSQL; pgcrypto is not bundled.
     const sql = (await readFile(join(dir,name), "utf8")).replace("create extension if not exists pgcrypto;", "")
@@ -92,6 +93,27 @@ try {
   const multiple = await confirm("multi-owner",[row(1900),row(1950,{expectedClientId:client2,expectedFarmId:farm2,expectedRenspaId:renspa2,expectedSex:"hembra"})])
   assert.equal(multiple.sessions.length,2);assert.equal(multiple.tags_used,2);assert.equal(multiple.animals,2)
   checks++;console.log("PASS: mixed owners produce separate sessions for their own RENSPA")
+  const register = (group, numbers, renspa = renspaId, sex = "macho") => db.query(
+    "select public.register_gallagher_tags($1,$2,$3,$4::text[],$5,$6)",
+    [group, renspa, sex, numbers.map(eid), hash("sparse"), "sparse.csv"],
+  )
+  const group = randomUUID()
+  await register(group, [2000, 2002, 2003])
+  await register(group, [2003, 2000, 2002])
+  await register(randomUUID(), [2005], renspa2, "hembra")
+  await assert.rejects(() => register(randomUUID(), [2002, 2004]), /registrada/)
+  const stock = await db.query(`select t.electronic_id, r.target_sex, b.renspa_id, b.gallagher_origin
+    from ear_tags t join ear_tag_ranges r on r.id=t.range_id join ear_tag_receipts b on b.id=r.receipt_id
+    where t.electronic_id between $1 and $2 order by t.electronic_id`, [eid(2000), eid(2005)])
+  assert.deepEqual(stock.rows.map(item => item.electronic_id), [2000, 2002, 2003, 2005].map(eid))
+  assert.equal(stock.rows[0].gallagher_origin.group_id, group)
+  assert.equal(stock.rows[0].gallagher_origin.file_hash, hash("sparse"))
+  assert.equal(stock.rows[3].renspa_id, renspa2)
+  assert.equal(stock.rows[3].target_sex, "hembra")
+  const sparse = await confirm("sparse", [row(2000), row(2002), row(2003),
+    row(2005, {expectedClientId:client2, expectedFarmId:farm2, expectedRenspaId:renspa2, expectedSex:"hembra"})])
+  assert.equal(sparse.tags_used, 4)
+  checks++;console.log("PASS: exact CSV registration preserves gaps, provenance and destinations; the same CSV imports")
   await assert.rejects(()=>db.query("update ear_tags set status='disponible'"),/permission/)
   checks++;console.log("PASS: direct stock writes are forbidden")
   await assert.rejects(()=>db.query("select public.revert_livestock_import($1,'test')",[first.sessions[0].import_id]),/caravanas utilizadas/)
@@ -100,6 +122,7 @@ try {
   assert.equal((await db.query("select count(*) n from ear_tag_session_links")).rows[0].n,0)
   assert.equal((await db.query("select count(*) n from gallagher_csv_confirmations")).rows[0].n,0)
   await assert.rejects(()=>confirm("forbidden",six),/permiso/)
+  await assert.rejects(()=>register(randomUUID(),[2050]),/permiso/)
   checks++;console.log("PASS: unassigned user cannot see links or confirm")
   console.log(`${checks} PostgreSQL integration checks passed`)
 } finally { await db.close() }

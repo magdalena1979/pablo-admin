@@ -8,6 +8,7 @@ import { csvConfirmationBlocker, eligibleCsvBatch } from "./csv-confirmation"
 import { runCsvBatch, type CsvBatchReport } from "./csv-batch"
 import { CsvImportDialog } from "./CsvImportDialog"
 import { EmptyCsvDialog } from "./EmptyCsvDialog"
+import { GallagherTagRegistrationDialog } from "./GallagherTagRegistrationDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
 import "./drive-review.css"
 
@@ -33,6 +34,7 @@ export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId }: { onConf
   const [busy, setBusy] = useState(false), [progress, setProgress] = useState("")
   const [error, setError] = useState(""), [reviews, setReviews] = useState<CsvFileReview[] | null>(null)
   const [fileId, setFileId] = useState("")
+  const [registeringTags, setRegisteringTags] = useState<CsvFileReview | null>(null)
   const [readingShare, setReadingShare] = useState(false)
   const shareRequest = useRef<AbortController | null>(null)
   const [emptyNotice, setEmptyNotice] = useState<{names:string[];hasOtherFiles:boolean}|null>(null)
@@ -142,23 +144,30 @@ export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId }: { onConf
 
   return <section className={`drive-review-panel${pageTitle ? " csv-page-import" : ""}`} aria-label="Importación de CSV de Gallagher">
     {emptyNotice&&<EmptyCsvDialog names={emptyNotice.names} hasOtherFiles={emptyNotice.hasOtherFiles} onClose={()=>setEmptyNotice(null)} onChoose={()=>{setEmptyNotice(null);input.current?.click()}}/>}
-    <input ref={input} type="file" accept=".csv,text/csv,text/comma-separated-values" multiple hidden onChange={event => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void review(files) }}/>
+    <input ref={input} type="file" multiple hidden onChange={event => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void review(files) }}/>
     {pageTitle ? <div className="compact-list-heading">
       <Link to="/inicio" className="text-button compact-back" aria-label="Volver a Inicio"><ArrowLeft size={20} aria-hidden="true"/></Link>
-      <PageHeader title={pageTitle} actions={importButtons}/>
+      <PageHeader title={pageTitle} actions={hasSharedCsv ? undefined : importButtons}/>
     </div> : <div className="drive-review-heading">
       <div><strong>Importar CSV de Gallagher</strong><p>Seleccioná los archivos de tu computadora. Se identifican cliente, establecimiento y RENSPA por las caravanas ya cargadas.</p></div>
       {importButtons}
     </div>}
-    {hasSharedCsv && <div className="csv-import-buttons">
+    {hasSharedCsv && <div className="panel csv-shared-intake">
+      <div className="csv-shared-intake-heading">
+        <strong>CSV compartido</strong>
+        {!confirming && <Link className="icon-button" to="/hacienda" replace aria-label="Cerrar archivo compartido"><X size={20} aria-hidden="true"/></Link>}
+      </div>
       <button type="button" className="primary-button" disabled={busy || confirming || readingShare} onClick={() => void reviewSharedCsv()}>
-        {readingShare ? "Revisando…" : "Revisar CSV compartido"}
+        {readingShare ? "Revisando…" : "Revisar archivo"}
       </button>
-      {!confirming && <Link className="text-button" to="/hacienda" replace>Cerrar archivo compartido</Link>}
     </div>}
     {shareError && <div className="form-error" role="alert">{shareError}</div>}
     {busy && <div className="drive-review-progress" role="status"><span>{progress}</span><button type="button" className="text-button" onClick={() => request.current?.abort()}><X size={15}/>Cancelar revisión</button></div>}
     {error && <div className="form-error" role="alert">{error}</div>}
-    {reviews&&!emptyNotice&&<CsvImportDialog files={reviews} confirmed={confirmed} errors={fileErrors} busy={confirming} progress={batchProgress} canConfirm={profile?.role==="super_admin"} onConfirm={()=>void confirmBatch()} onReview={()=>void review(sourceFiles.current)} onCancel={()=>{if(saving.current)return;setReviews(null);setFileId("");setError("");setBatchReport(null);sourceFiles.current=[]}}/>}
+    {registeringTags ? <GallagherTagRegistrationDialog file={registeringTags} onBack={() => setRegisteringTags(null)}
+      onRegistered={() => {
+        setRegisteringTags(null)
+        void review(sourceFiles.current)
+      }}/> : reviews&&!emptyNotice&&<CsvImportDialog files={reviews} confirmed={confirmed} errors={fileErrors} busy={confirming} progress={batchProgress} canConfirm={profile?.role==="super_admin"} onConfirm={()=>void confirmBatch()} onReview={()=>void review(sourceFiles.current)} onRegisterTags={profile?.role==="super_admin" ? setRegisteringTags : undefined} onCancel={()=>{if(saving.current)return;setReviews(null);setFileId("");setError("");setBatchReport(null);sourceFiles.current=[]}}/>}
   </section>
 }
