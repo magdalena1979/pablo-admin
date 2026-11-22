@@ -14,10 +14,13 @@ function db() {
 }
 
 export const professionalWorksService = {
-  async list() {
-    const request = () => db().from("professional_works")
-      .select("id,farm_id,work_date,description,invoiced,farms(client_id),professional_work_sessions(session_id),professional_invoice_works(professional_invoices(invoice_number))")
-      .order("work_date", { ascending: false }).order("id")
+  async list(farmId?: string) {
+    const request = () => {
+      const query = db().from("professional_works")
+        .select("id,farm_id,work_date,description,invoiced,farms(client_id),professional_work_sessions(session_id),professional_invoice_works(professional_invoices(invoice_number))")
+        .order("work_date", { ascending: false }).order("id")
+      return farmId ? query.eq("farm_id", farmId) : query
+    }
     type Rows = NonNullable<Awaited<ReturnType<typeof request>>["data"]>
     const works: Rows = []
     for (let offset = 0; ; offset += 500) {
@@ -48,6 +51,13 @@ export const professionalWorksService = {
     const { error } = await db().rpc("create_professional_work", {
       p_id: input.id, p_farm_id: input.farmId, p_work_date: input.date,
       p_description: input.description, p_session_ids: [],
+    })
+    if (error) throw error
+  },
+
+  async editPending(input: { id: string; date: string; description: string }) {
+    const { error } = await db().rpc("edit_pending_professional_work", {
+      p_id: input.id, p_work_date: input.date, p_description: input.description,
     })
     if (error) throw error
   },

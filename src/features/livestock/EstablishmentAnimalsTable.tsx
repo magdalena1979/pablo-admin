@@ -9,6 +9,7 @@ type Value={value:string;date:string;filename:string}
 type Records=Record<string,Record<string,Value>>
 function one<T>(value:T|T[]|null|undefined):T|undefined{return Array.isArray(value)?value[0]:value??undefined}
 const date=(value:string)=>new Date(value).toLocaleDateString("es-AR",{timeZone:"America/Argentina/Buenos_Aires"})
+const animalSex = (value: string | null | undefined) => value === "macho" ? "Macho" : value === "hembra" ? "Hembra" : value || "Sexo sin completar"
 export function EstablishmentAnimalsTable({farmId,rows,onSelect,farmName}:{farmId:string;rows:AnimalRow[];onSelect(animal:AnimalRow):void;farmName?:string}){
  const [records,setRecords]=useState<Records>({}),[loading,setLoading]=useState(true),[error,setError]=useState("")
  const [attempt,setAttempt]=useState(0)
@@ -52,9 +53,26 @@ export function EstablishmentAnimalsTable({farmId,rows,onSelect,farmName}:{farmI
   <article><span className="overview-icon"><CalendarDays size={25}/></span><div><small>Última lectura / evento</small><strong className="overview-date">{latestDate?date(latestDate):"Sin registros"}</strong></div></article>
   <article className="overview-farm"><span className="overview-icon"><MapPin size={25}/></span><div><small>Establecimiento</small><strong className="overview-name">{farmName||rows[0]?.farmName||"Establecimiento"}</strong></div></article>
  </div>
- {loading&&<p role="status">Cargando datos de los archivos…</p>}
+ {loading&&<p className="animal-desktop-only" role="status">Cargando datos de los archivos…</p>}
  <div className="animal-view-toggle" role="group" aria-label="Vista de los animales"><button aria-pressed={view==="latest"} onClick={()=>setView("latest")}>Últimos valores</button><button aria-pressed={view==="monthly"} onClick={()=>setView("monthly")}>Por mes</button></div>
- {error&&<div className="data-error" role="alert">{error}<button className="secondary-button" onClick={()=>setAttempt(value=>value+1)}>Reintentar</button></div>}
+ {error&&<div className="data-error animal-desktop-only" role="alert">{error}<button className="secondary-button" onClick={()=>setAttempt(value=>value+1)}>Reintentar</button></div>}
+ <ul className="animal-mobile-list panel" aria-label="Animales">
+   {rows.map(animal => <li key={animal.id}>
+     <button type="button" className="animal-mobile-row" onClick={() => onSelect(animal)}
+       aria-label={`Ver historial de la caravana ${animal.tagNumber}`}>
+       <span className="animal-mobile-info">
+         <span className="animal-mobile-main"><strong>{animal.tagNumber}</strong><span>{animalSex(animal.sex)}</span></span>
+         <small>{animal.electronicId ?? animal.electronicIdRaw ?? "Sin EID"}</small>
+       </span>
+       <span className="animal-mobile-last">
+         <span className={`animal-state${animal.status.toLowerCase() === "activo" ? " animal-state-active" : ""}`}>{animal.status}</span>
+         <small>{animal.lastEventDate ? date(animal.lastEventDate) : "Sin lecturas"}</small>
+       </span>
+       <ChevronRight size={16} aria-hidden="true"/>
+     </button>
+   </li>)}
+   {!rows.length && <li className="animal-mobile-empty">No hay animales para esta selección.</li>}
+ </ul>
  <div className="table-wrap hacienda-animal-scroll" tabIndex={0} role="region" aria-label="Tabla de animales con desplazamiento horizontal"><table className="data-table establishment-animal-grid"><thead><tr><th>Caravana</th><th>EID</th><th>Sexo</th>{showRenspa&&<th>RENSPA</th>}<th>Última lectura / evento</th>{view==="latest"?columns.map(field=><th key={field}>{field}</th>):months.map(month=><th key={month}>{new Date(`${month}-15T12:00:00Z`).toLocaleDateString("es-AR",{month:"long",year:"numeric",timeZone:"America/Argentina/Buenos_Aires"})}</th>)}<th>Estado</th></tr></thead><tbody>{rows.map(animal=><tr key={animal.id}><td><button className="text-button animal-tag-link" aria-label={`Ver historial de la caravana ${animal.tagNumber}`} onClick={()=>onSelect(animal)}>{animal.tagNumber}<ChevronRight size={16}/></button></td><td>{animal.electronicId??animal.electronicIdRaw??"—"}</td><td>{animal.sex==="macho"?"Macho":animal.sex==="hembra"?"Hembra":animal.sex||"Sin completar"}</td>{showRenspa&&<td>{animal.renspas.map(row=>row.number).join(", ")||"Sin vínculo"}</td>}<td>{animal.lastEventDate?date(animal.lastEventDate):"—"}<small className="cell-note">{animal.lastEvent||"Sin registros"}</small></td>{view==="monthly"?months.map(month=><td key={month} className="animal-month-cell">{monthly[animal.id]?.[month]?.map(reading=><div key={reading.id} className="animal-month-reading"><button className="text-button" title={reading.filename} onClick={()=>onSelect(animal)}>{date(reading.date)} · Lectura</button>{Object.entries(reading.fields).length?<details><summary>Datos registrados</summary>{Object.entries(reading.fields).map(([key,value])=><small key={key}>{key}: {value}</small>)}<small>Origen: {reading.filename}</small></details>:<small>Sin datos adicionales</small>}</div>)||"—"}</td>):columns.map(field=>{const item=records[animal.id]?.[field];return <td key={field} title={item?`Origen: ${item.filename}`:undefined}>{item?<><strong className={field.toLowerCase()==="gestacion"?"animal-raw-trait":""}>{item.value}</strong><small className="cell-note">{date(item.date)}</small></>:"—"}</td>})}<td><span className={`animal-state${animal.status.toLowerCase()==="activo"?" animal-state-active":""}`}>{animal.status}</span></td></tr>)}{!rows.length&&<tr><td colSpan={6+(view==="monthly"?months.length:columns.length)+(showRenspa?1:0)}>No hay animales para esta selección.</td></tr>}</tbody></table></div>
  <div className="animal-table-footer">{rows.length} animales mostrados</div>
  {!loading&&!error&&columns.length>0&&<p className="establishment-values-note">Los encabezados y valores conservan los nombres originales del CSV. No se interpretan como diagnósticos ni tratamientos confirmados.</p>}

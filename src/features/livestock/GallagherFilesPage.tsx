@@ -1,3 +1,4 @@
+import { AppSelect } from "@/components/ui/AppSelect"
 import { Badge } from "@/components/ui/Presentation"
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
@@ -54,22 +55,22 @@ export function GallagherFilesPage(){
        Filtros{filterCount > 0 && ` (${filterCount})`}
      </button>
      <div id="gallagher-filters" className="toolbar compact-list-filters" data-expanded={filtersOpen}>
-       <select aria-label="Filtrar por cliente" value={clientId} onChange={event => { setClientId(event.target.value); setFarmId(""); setRenspa("") }}>
+       <AppSelect aria-label="Filtrar por cliente" value={clientId} onChange={event => { setClientId(event.target.value); setFarmId(""); setRenspa("") }}>
          <option value="">Cliente</option>
          {[...clients].map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-       </select>
-       <select aria-label="Filtrar por establecimiento" value={farmId} onChange={event => { setFarmId(event.target.value); setRenspa("") }}>
+       </AppSelect>
+       <AppSelect aria-label="Filtrar por establecimiento" value={farmId} onChange={event => { setFarmId(event.target.value); setRenspa("") }}>
          <option value="">Establecimiento</option>
          {[...farms].map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-       </select>
-       <select aria-label="Filtrar por RENSPA" value={renspa} onChange={event => setRenspa(event.target.value)}>
+       </AppSelect>
+       <AppSelect aria-label="Filtrar por RENSPA" value={renspa} onChange={event => setRenspa(event.target.value)}>
          <option value="">RENSPA</option>
          {renspas.map(number => <option key={number}>{number}</option>)}
-       </select>
-       <select aria-label="Filtrar por estado" value={status} onChange={event => setStatus(event.target.value)}>
+       </AppSelect>
+       <AppSelect aria-label="Filtrar por estado" value={status} onChange={event => setStatus(event.target.value)}>
          <option value="">Estado</option>
          {statuses.map(value => <option key={value}>{value}</option>)}
-       </select>
+       </AppSelect>
      </div>
      <div className="panel data-panel gallagher-desktop-table">
        <div className="table-wrap">

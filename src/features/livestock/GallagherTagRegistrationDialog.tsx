@@ -1,3 +1,4 @@
+import { AppSelect } from "@/components/ui/AppSelect"
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { ArrowLeft } from "lucide-react"
 import { clientsService, type ClientRecord } from "@/services/clients.service"
@@ -106,17 +107,17 @@ export function GallagherTagRegistrationDialog({ file, onBack, onRegistered }: {
       {loadError && <div className="form-error" role="alert">{loadError} <button type="button" className="text-button" onClick={() => setAttempt(value => value + 1)}>Reintentar</button></div>}
       <fieldset className="registration-inputs" disabled={saving || loading || Boolean(loadError)}>
         <div className="form-grid gallagher-tag-destination">
-          <label>Establecimiento<select required value={farmId} onChange={event => { setFarmId(event.target.value); setRenspaId("") }}>
+          <label>Establecimiento<AppSelect required value={farmId} onChange={event => { setFarmId(event.target.value); setRenspaId("") }}>
             <option value="">Seleccionar</option>
             {farms.map(item => <option key={item.id} value={item.id}>{item.name} · {item.client}</option>)}
-          </select></label>
-          <label>RENSPA<select required value={renspaId} disabled={!farm?.renspas.length} onChange={event => setRenspaId(event.target.value)}>
+          </AppSelect></label>
+          <label>RENSPA<AppSelect required value={renspaId} disabled={!farm?.renspas.length} onChange={event => setRenspaId(event.target.value)}>
             <option value="">Seleccionar</option>
             {farm?.renspas.map(item => <option key={item.id} value={item.id}>{item.number}</option>)}
-          </select></label>
-          <label>Destino<select required value={sex} onChange={event => setSex(event.target.value as TagSex | "")}>
+          </AppSelect></label>
+          <label>Destino<AppSelect required value={sex} onChange={event => setSex(event.target.value as TagSex | "")}>
             <option value="">Seleccionar</option><option value="macho">Machos</option><option value="hembra">Hembras</option>
-          </select></label>
+          </AppSelect></label>
         </div>
         <label className="search gallagher-tag-search"><input aria-label="Buscar caravanas sin alta" type="search"
           placeholder="Buscar EID o caravana visual" value={query} onChange={event => setQuery(event.target.value)}/></label>

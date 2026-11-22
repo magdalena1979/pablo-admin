@@ -1,6 +1,7 @@
+import { AppSelect } from "@/components/ui/AppSelect"
 import { PageHeader } from "@/components/ui/Presentation"
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { ArrowLeft, Plus, Search, X } from "lucide-react"
+import { ArrowLeft, ChevronRight, Plus, Search, X } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFarmScope } from "@/app/providers/FarmScopeProvider"
 import { clientsService, type ClientRecord, type FarmInput } from "@/services/clients.service"
@@ -55,7 +56,7 @@ export function ClientsPage() {
   return <section className="page compact-list-page"><div className={selected ? "registration" : "registration clients-list"}>
     {loadError && <div className="data-error" role="alert"><strong>No pudimos cargar los clientes</strong><span>{loadError}</span><button className="secondary-button" onClick={() => void load()}>Reintentar</button></div>}
     {selected ? <>
-      <div className="compact-list-heading">
+      <div className="compact-list-heading clients-compact-heading">
         <button type="button" className="text-button compact-back" aria-label="Volver a Clientes" onClick={() => setSelectedId(null)}><ArrowLeft size={20} aria-hidden="true"/></button>
         <PageHeader title={selected.legalName || "Cliente sin completar"} actions={canManage && <button type="button" className="secondary-button" onClick={() => { setSaveError(""); setEditing(true); setClientDraft({ ...selected, color: selected.color || "#2D6AA3" }) }}>Editar ficha</button>}/>
       </div>
@@ -67,14 +68,27 @@ export function ClientsPage() {
         {farm.renspas.length ? <div className="table-wrap"><table className="data-table"><caption className="client-table-caption">RENSPA de {farm.name || "este establecimiento"}</caption><thead><tr><th>RENSPA</th><th>CUIG</th><th>CV</th></tr></thead><tbody>{farm.renspas.map(row => <tr key={row.id}><td>{row.number || "Sin completar"}</td><td>{row.cuig || "Sin completar"}</td><td>{row.cv || "Sin completar"}</td></tr>)}</tbody></table></div> : <p className="client-empty-note">Este establecimiento todavía no tiene RENSPA.</p>}
       </article>)}
     </> : <>
-      <div className="compact-list-heading">
+      <div className="compact-list-heading clients-compact-heading">
         <Link to="/inicio" className="text-button compact-back" aria-label="Volver a Inicio"><ArrowLeft size={20} aria-hidden="true"/></Link>
         <PageHeader title="Mis clientes" actions={canManage && <button type="button" className="primary-button" aria-label="Nuevo cliente" title="Nuevo cliente" onClick={() => { setSaveError(""); setEditing(false); setClientDraft({ ...emptyClient }) }}><Plus size={20} aria-hidden="true"/></button>}/>
       </div>
       <div className="toolbar compact-list-search">
-        <label className="search"><Search size={16} aria-hidden="true"/><input type="search" aria-label="Buscar clientes" placeholder="Buscar cliente, contacto, establecimiento o RENSPA" value={query} onChange={e => setQuery(e.target.value)}/></label>
+        <label className="search"><Search size={16} aria-hidden="true"/><input type="search" aria-label="Buscar por cliente, contacto, establecimiento o RENSPA" placeholder="Buscar clientes" value={query} onChange={e => setQuery(e.target.value)}/></label>
       </div>
-      <ClientsGrid clients={visible} onOpen={setSelectedId} emptyMessage={clients.length ? "No hay clientes para esta búsqueda." : "Todavía no hay clientes registrados."}/>
+      <div className="clients-desktop-grid"><ClientsGrid clients={visible} onOpen={setSelectedId}
+        emptyMessage={clients.length ? "No hay clientes para esta búsqueda." : "Todavía no hay clientes registrados."}/></div>
+      <ul className="panel clients-mobile-list" aria-label="Clientes">
+        {visible.map(client => <li key={client.id}>
+          <button type="button" onClick={() => setSelectedId(client.id)}>
+            <span>
+              <strong>{client.legalName || "Cliente sin completar"}</strong>
+              {client.farms.length > 0 && <small>{client.farms.map(farm => farm.name).filter(Boolean).join(" · ")}</small>}
+            </span>
+            <ChevronRight size={17} aria-hidden="true"/>
+          </button>
+        </li>)}
+        {!visible.length && <li className="clients-mobile-empty">{clients.length ? "No hay clientes para esta búsqueda." : "Todavía no hay clientes registrados."}</li>}
+      </ul>
     </>}
     {clientDraft && <RegistrationDialog title={editing ? "Editar ficha del cliente" : "Nuevo cliente"} onClose={closeDialogs}><form onSubmit={event => {
       event.preventDefault()
@@ -91,7 +105,7 @@ export function ClientsPage() {
         // Refresh scope independently: a scope load failure must not offer to reinsert a saved farm.
         void refresh().catch(() => undefined)
       })
-    }}><fieldset className="registration-inputs" disabled={saving}><div className="form-grid">{([["name", "Nombre del establecimiento"], ["address", "Domicilio / ubicación"], ["locality", "Localidad"], ["province", "Provincia"]] as const).map(([key, label]) => <label key={key}>{label}<input required={key === "name"} autoFocus={key === "name"} value={farmDraft[key]} onChange={event => setFarmDraft({ ...farmDraft, [key]: event.target.value })}/></label>)}<label>Modalidad de servicio<select required value={farmDraft.serviceMode} onChange={event => setFarmDraft({ ...farmDraft, serviceMode: event.target.value as FarmInput["serviceMode"] })}><option value="">Seleccionar modalidad</option><option value="veterinaria">Servicio veterinario</option><option value="administracion_integral">Administración integral</option></select></label></div></fieldset><RegistrationActions saving={saving} error={saveError} onClose={closeDialogs} label="Guardar establecimiento"/></form></RegistrationDialog>}
+    }}><fieldset className="registration-inputs" disabled={saving}><div className="form-grid">{([["name", "Nombre del establecimiento"], ["address", "Domicilio / ubicación"], ["locality", "Localidad"], ["province", "Provincia"]] as const).map(([key, label]) => <label key={key}>{label}<input required={key === "name"} autoFocus={key === "name"} value={farmDraft[key]} onChange={event => setFarmDraft({ ...farmDraft, [key]: event.target.value })}/></label>)}<label>Modalidad de servicio<AppSelect required value={farmDraft.serviceMode} onChange={event => setFarmDraft({ ...farmDraft, serviceMode: event.target.value as FarmInput["serviceMode"] })}><option value="">Seleccionar modalidad</option><option value="veterinaria">Servicio veterinario</option><option value="administracion_integral">Administración integral</option></AppSelect></label></div></fieldset><RegistrationActions saving={saving} error={saveError} onClose={closeDialogs} label="Guardar establecimiento"/></form></RegistrationDialog>}
     {renspaFarmId && selected && <RegistrationDialog title="Agregar RENSPA" onClose={closeDialogs}><p>Establecimiento: <strong>{selected.farms.find(farm => farm.id === renspaFarmId)?.name}</strong></p><form onSubmit={event => {
       event.preventDefault()
       void save(async () => { await clientsService.addRenspa(renspaFarmId, renspaDraft); setRenspaFarmId(null) })

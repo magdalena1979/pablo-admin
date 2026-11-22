@@ -23,7 +23,7 @@ await db.exec(`
 try {
   const dir = resolve("supabase/migrations")
   const migrations = (await readdir(dir)).filter(name => name.endsWith(".sql") && !name.includes("demo") &&
-    (Number(name.slice(0,3)) <= 47 || name.startsWith("053_"))).sort()
+    Number(name.slice(0,3)) <= 54).sort()
   for (const name of migrations) {
     // gen_random_uuid is built into this PostgreSQL; pgcrypto is not bundled.
     const sql = (await readFile(join(dir,name), "utf8")).replace("create extension if not exists pgcrypto;", "")
@@ -114,6 +114,19 @@ try {
     row(2005, {expectedClientId:client2, expectedFarmId:farm2, expectedRenspaId:renspa2, expectedSex:"hembra"})])
   assert.equal(sparse.tags_used, 4)
   checks++;console.log("PASS: exact CSV registration preserves gaps, provenance and destinations; the same CSV imports")
+  const manualId = randomUUID(), linkedWorkId = randomUUID()
+  const editWork = id => db.query("select public.edit_pending_professional_work($1,'2026-11-19','Tacto corregido')", [id])
+  await db.query("select public.create_professional_work($1,$2,'2026-11-18','Tacto','{}'::uuid[])", [manualId, farmId])
+  await editWork(manualId)
+  const edited = (await db.query("select work_date::text as date,description from professional_works where id=$1", [manualId])).rows[0]
+  assert.deepEqual(edited, {date:"2026-11-19",description:"Tacto corregido"})
+  await db.query("select public.record_professional_invoice($1,$2,'0001','2026-11-20',null,null,array[$3::uuid],'{}'::uuid[])",
+    [randomUUID(), clientId, manualId])
+  await assert.rejects(() => editWork(manualId), /pendientes/)
+  await db.query("select public.create_professional_work($1,$2,'2026-11-18','Trabajo Gallagher',array[$3::uuid])",
+    [linkedWorkId, farmId, multiple.sessions.find(session => session.farm_id === farmId).session_id])
+  await assert.rejects(() => editWork(linkedWorkId), /manuales/)
+  checks++;console.log("PASS: manual work can be corrected before invoicing; invoiced and Gallagher-linked work remain protected")
   await assert.rejects(()=>db.query("update ear_tags set status='disponible'"),/permission/)
   checks++;console.log("PASS: direct stock writes are forbidden")
   await assert.rejects(()=>db.query("select public.revert_livestock_import($1,'test')",[first.sessions[0].import_id]),/caravanas utilizadas/)
@@ -123,6 +136,7 @@ try {
   assert.equal((await db.query("select count(*) n from gallagher_csv_confirmations")).rows[0].n,0)
   await assert.rejects(()=>confirm("forbidden",six),/permiso/)
   await assert.rejects(()=>register(randomUUID(),[2050]),/permiso/)
+  await assert.rejects(()=>editWork(manualId),/permiso/)
   checks++;console.log("PASS: unassigned user cannot see links or confirm")
   console.log(`${checks} PostgreSQL integration checks passed`)
 } finally { await db.close() }

@@ -1,52 +1,11 @@
 .app-frame .action-home{max-width:none;width:100%;padding:24px 30px 40px}.home-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.home-action{display:flex;flex-direction:column;min-width:0;padding:24px;border:1px solid #dde5ed;border-radius:12px;background:white;text-decoration:none;box-shadow:0 2px 4px #1a354803;transition:transform .15s,border-color .15s,box-shadow .15s}.home-action:hover{transform:translateY(-3px);border-color:#a5bfd5;box-shadow:0 8px 22px #18364e0c}.home-action:focus-visible,.home-farm:focus-visible{outline:3px solid #2d6aa3;outline-offset:4px}.home-action-top{display:flex;align-items:center;justify-content:space-between;color:#98aaba}.home-action-icon{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:12px;background:#edf4fa;color:#2d6aa3}.home-action h2{font:600 18px/1.4 Inter,ui-sans-serif,system-ui,sans-serif;margin:12px 0 0;color:#243f56}.home-farms{margin-top:24px}.home-farm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.home-farm{padding:20px;border:1px solid #e0e7ee;border-left:3px solid var(--client-accent);background:white;border-radius:8px;text-decoration:none;color:#294359;transition:border-color .15s,box-shadow .15s}.home-farm:hover{box-shadow:0 5px 15px #1a35480a;border-color:var(--client-accent)}.home-farm-client{display:flex;align-items:center;gap:8px;color:#8799a9;font-size:11px}.home-farm-client i{height:7px;width:7px;background:var(--client-accent);border-radius:50%;flex-shrink:0}.home-farm-name{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:15px 0 8px}.home-farm h3{font-size:17px;font-weight:600;margin:0}.home-farm-name svg{color:#8fa5b7}.home-farm p{font-size:12px;color:#8295a6;margin:0 0 16px}.home-farm small{font-size:10px;color:#71899e;background:#f2f6f9;padding:4px 8px;border-radius:5px}.home-farm-empty{padding:30px;background:white;border:1px dashed #cedbe6;border-radius:10px}.home-farm-empty h3{font-size:16px}.home-farm-empty p{font-size:13px;color:#7b8d9e}@media(max-width:1200px){.home-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.home-farm-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.app-frame .action-home{padding:24px 16px}.home-actions,.home-farm-grid{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){.home-action,.home-farm{transition:none}.home-action:hover{transform:none}}
 @media (max-width: 760px) {
   #root .app-frame .action-home {
-    padding: 12px 16px calc(86px + env(safe-area-inset-bottom));
+    padding: 12px 16px 20px;
   }
 
-  #root .action-home .home-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  #root .action-home .home-action {
-    padding: 10px 12px;
-  }
-
-  #root .action-home .home-action h2 { font-size: 15px; margin-top: 6px; }
-  #root .action-home .home-action-icon { width: 30px; height: 30px; }
-  #root .action-home .home-action-icon svg { width: 18px; height: 18px; }
-
-  #root .action-home .home-import-action {
-    position: fixed;
-    z-index: 15;
-    right: calc(16px + env(safe-area-inset-right));
-    bottom: calc(16px + env(safe-area-inset-bottom));
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    min-height: 48px;
-    padding: 8px 16px;
-    border-color: var(--ui-primary);
-    border-radius: 999px;
-    background: var(--ui-primary);
-    box-shadow: var(--ui-shadow-overlay);
-    transform: none;
-  }
-
-  #root .action-home .home-import-action:hover { background: var(--ui-primary-hover); }
-  #root .action-home .home-import-action h2 { color: white; margin: 0; }
-  #root .action-home .home-import-action .home-action-icon {
-    width: auto;
-    height: auto;
-    background: transparent;
-    color: white;
-  }
-  #root .action-home .home-import-action .home-action-arrow { display: none; }
-
-  .home-farms { margin-top: 14px; }
-  .home-actions:not(:has(.home-action:not(.home-import-action))) + .home-farms { margin-top: 0; }
+  #root .action-home .home-actions { display: none; }
+  .home-farms { margin-top: 0; }
   #root .action-home .home-farm-grid { gap: 10px; }
   .home-farm { padding: 12px; }
   .home-farm-name { margin: 6px 0 4px; }

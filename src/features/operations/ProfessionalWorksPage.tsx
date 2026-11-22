@@ -1,9 +1,11 @@
+import { AppSelect } from "@/components/ui/AppSelect"
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Plus } from "lucide-react"
-import { Navigate } from "react-router-dom"
+import { Navigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFarmScope } from "@/app/providers/FarmScopeProvider"
 import { Badge, PageHeader } from "@/components/ui/Presentation"
+import { createRequestId } from "@/lib/request-id"
 import { professionalWorksService, type InvoiceDetails } from "@/services/professional-works.service"
 
 type Works = Awaited<ReturnType<typeof professionalWorksService.list>>
@@ -36,11 +38,13 @@ function WorksTable() {
   const [invoiceNotice, setInvoiceNotice] = useState("")
   const [reload, setReload] = useState(0)
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<Works[number] | null>(null)
   const [updating, setUpdating] = useState("")
   const [selectedKeys, setSelectedKeys] = useState<string[]>([])
   const [invoicing, setInvoicing] = useState(false)
   const [invoiceOpen, setInvoiceOpen] = useState(false)
-  const [farmFilter, setFarmFilter] = useState("")
+  const [params, setParams] = useSearchParams()
+  const farmFilter = params.get("establecimiento") ?? ""
   const [status, setStatus] = useState("")
   const farmById = new Map(farms.map(farm => [farm.id, farm]))
 
@@ -126,13 +130,18 @@ function WorksTable() {
         <button type="button" className="secondary-button" onClick={() => setReload(value => value + 1)}>Reintentar</button>
       </div> : <>
         <div className="toolbar compact-list-filters">
-          <select aria-label="Filtrar por establecimiento" value={farmFilter} onChange={event => setFarmFilter(event.target.value)}>
+          <AppSelect aria-label="Filtrar por establecimiento" value={farmFilter} onChange={event => {
+            const next = new URLSearchParams(params)
+            if (event.target.value) next.set("establecimiento", event.target.value)
+            else next.delete("establecimiento")
+            setParams(next, { replace: true })
+          }}>
             <option value="">Todos los establecimientos</option>
             {farms.map(farm => <option key={farm.id} value={farm.id}>{farm.name} · {farm.clientName}</option>)}
-          </select>
-          <select aria-label="Filtrar por facturación" value={status} onChange={event => setStatus(event.target.value)}>
+          </AppSelect>
+          <AppSelect aria-label="Filtrar por facturación" value={status} onChange={event => setStatus(event.target.value)}>
             <option value="">Todos los estados</option><option value="pendiente">Pendientes</option><option value="facturado">Facturados</option>
-          </select>
+          </AppSelect>
         </div>
         {selected.length > 0 && <div className="toolbar" role="status">
           {selected.length} {selected.length === 1 ? "seleccionado" : "seleccionados"}{selectedClientName && ` · ${selectedClientName}`}
@@ -161,7 +170,9 @@ function WorksTable() {
                   <td>{row.description}</td><td>{row.count}</td>
                   <td><Badge tone={row.invoiced ? "success" : "warning"}>{row.invoiced ? "Facturado" : "Pendiente"}</Badge></td>
                   <td>{row.invoiceNumber || "—"}</td>
-                  <td>{work && row.invoiced && !row.invoiceNumber && <button type="button" className="text-button" disabled={invoicing || Boolean(updating)} onClick={() => void toggleInvoice(work)}>
+                  <td>{work && !row.invoiced && row.count === 0 && <button type="button" className="table-action"
+                    disabled={invoicing || Boolean(updating)} onClick={() => setEditing(work)}>Editar</button>}
+                  {work && row.invoiced && !row.invoiceNumber && <button type="button" className="text-button" disabled={invoicing || Boolean(updating)} onClick={() => void toggleInvoice(work)}>
                     {updating === work.id ? "Guardando…" : "Marcar pendiente"}
                   </button>}</td>
                 </tr>
@@ -171,8 +182,10 @@ function WorksTable() {
           </table>
         </div></div>
       </>}
-    {creating && <WorkDialog onClose={() => setCreating(false)} onSaved={() => {
-      setCreating(false)
+    {(creating || editing) && <WorkDialog key={editing?.id ?? "new"} editing={editing ?? undefined}
+      fixedFarm={editing ? { id: editing.farm_id, name: farmById.get(editing.farm_id)?.name || "Establecimiento actual" } : undefined}
+      onClose={() => { setCreating(false); setEditing(null) }} onSaved={() => {
+      setCreating(false); setEditing(null)
       setReload(value => value + 1)
     }}/>}
     {invoiceOpen && <InvoiceDialog client={selectedClientName} works={selected.map(row => ({
@@ -189,7 +202,7 @@ function InvoiceDialog({ client, works, saving, onClose, onSave }: {
   onSave(invoice: InvoiceDetails): Promise<void>
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const [id] = useState(() => crypto.randomUUID())
+  const [id] = useState(createRequestId)
   const [number, setNumber] = useState("")
   const [date, setDate] = useState("")
   const [amount, setAmount] = useState("")
@@ -243,13 +256,16 @@ function InvoiceDialog({ client, works, saving, onClose, onSave }: {
   </dialog>
 }
 
-function WorkDialog({ onClose, onSaved }: { onClose(): void; onSaved(): void }) {
+export function WorkDialog({ onClose, onSaved, fixedFarm, editing }: {
+  onClose(): void; onSaved(): void; fixedFarm?: { id: string; name: string }
+  editing?: Pick<Works[number], "id" | "work_date" | "description">
+}) {
   const { farms } = useFarmScope()
   const dialog = useRef<HTMLDialogElement>(null)
-  const [id] = useState(() => crypto.randomUUID())
-  const [farmId, setFarmId] = useState("")
-  const [date, setDate] = useState("")
-  const [description, setDescription] = useState("")
+  const [id] = useState(() => editing?.id ?? createRequestId())
+  const [farmId, setFarmId] = useState(fixedFarm?.id ?? "")
+  const [date, setDate] = useState(editing?.work_date ?? "")
+  const [description, setDescription] = useState(editing?.description ?? "")
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
 
@@ -265,10 +281,12 @@ function WorkDialog({ onClose, onSaved }: { onClose(): void; onSaved(): void }) 
     setSaving(true)
     setError("")
     try {
-      await professionalWorksService.create({ id, farmId, date, description: description.trim() })
+      const values = { id, date, description: description.trim() }
+      if (editing) await professionalWorksService.editPending(values)
+      else await professionalWorksService.create({ ...values, farmId })
       onSaved()
     } catch (cause) {
-      setError(errorMessage(cause, "No pudimos registrar el trabajo."))
+      setError(errorMessage(cause, "No pudimos guardar el trabajo."))
       setSaving(false)
     }
   }
@@ -276,13 +294,13 @@ function WorkDialog({ onClose, onSaved }: { onClose(): void; onSaved(): void }) 
   return <dialog ref={dialog} className="dialog-card" aria-labelledby="professional-work-title"
     onCancel={event => { event.preventDefault(); if (!saving) onClose() }}>
     <form onSubmit={event => void submit(event)}>
-      <header className="dialog-header"><h2 id="professional-work-title">Registrar trabajo manual</h2></header>
+      <header className="dialog-header"><h2 id="professional-work-title">{editing ? "Editar trabajo manual" : "Registrar trabajo manual"}</h2></header>
       <fieldset className="registration-inputs" disabled={saving}>
         <div className="form-grid">
-          <label>Establecimiento<select required value={farmId} onChange={event => setFarmId(event.target.value)}>
+          <label>Establecimiento{fixedFarm ? <input readOnly value={fixedFarm.name}/> : <AppSelect required value={farmId} onChange={event => setFarmId(event.target.value)}>
             <option value="">Seleccionar establecimiento</option>
             {farms.map(farm => <option key={farm.id} value={farm.id}>{farm.name} · {farm.clientName}</option>)}
-          </select></label>
+          </AppSelect>}</label>
           <label>Fecha del trabajo<input type="date" required value={date} onChange={event => setDate(event.target.value)}/></label>
           <label className="span-2">Trabajo realizado<input required maxLength={200} placeholder="Por ejemplo, raspaje o tacto" value={description} onChange={event => setDescription(event.target.value)}/></label>
         </div>

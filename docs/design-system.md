@@ -10,6 +10,7 @@ Omitir las descripciones introductorias debajo del título. Mantener los datos d
 - Controles de 42 px con texto de 14 px. Usar `toolbar compact-list-filters` para selectores del mismo ancho y `toolbar compact-list-search` para un buscador de ancho completo. El contenedor `search` dibuja el borde y el foco del buscador. Los selectores de la barra dejan 12 px entre la flecha y el borde.
 - Tabla con `panel data-panel`, `table-wrap` y `data-table`. El encabezado de columna usa 12 px y las celdas usan 13 px. Mantener las acciones de cada fila con `table-action` o `text-button` y mostrar los estados vacíos dentro de la tabla.
 - Los tamaños se definen en `src/styles/tokens.css` y se aplican en `src/styles/design-system.css`. Conservar en CSS local solo la distribución propia de cada vista. En pantallas angostas los filtros se acomodan en filas y la tabla admite desplazamiento horizontal.
+- Para desplegables de selección simple, usar `AppSelect` con opciones `<option>`. El menú se ancla al campo en celular y escritorio, y conserva la validación del formulario.
 
 ## Alcance y auditoría
 

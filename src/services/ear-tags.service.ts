@@ -7,15 +7,33 @@ export interface BagInput {
 }
 export interface TagReceipt {
   id: string; renspaId: string; receivedOn: string; first: string; last: string
+  gallagherGroupId?: string
   quantity: number; available: number; used: number; ranges: Array<CheckedTagRange & { available: number; used: number }>
 }
 function db() { if (!supabase) throw new Error("Supabase no está configurado."); return supabase }
 export const earTagsService = {
   async list(): Promise<TagReceipt[]> {
-    const { data, error } = await db().from("ear_tag_receipts")
-      .select("id,renspa_id,received_on,first_eid,last_eid,quantity,ear_tag_ranges(id,first_eid,last_eid,target_sex,quantity)")
-      .order("received_on", { ascending: false }).order("created_at", { ascending: false })
-    if (error) throw error
+    const columns = "id,renspa_id,received_on,first_eid,last_eid,quantity,ear_tag_ranges(id,first_eid,last_eid,target_sex,quantity)"
+    const columnsWithOrigin = `${columns},gallagher_group_id:gallagher_origin->>group_id` as const
+    const page = (offset: number, withOrigin: boolean) => {
+      const table = db().from("ear_tag_receipts")
+      const query = withOrigin ? table.select(columnsWithOrigin) : table.select(columns)
+      return query.order("received_on", { ascending: false }).order("created_at", { ascending: false }).order("id")
+        .range(offset, offset + 499)
+    }
+    let withOrigin = true
+    let result = await page(0, withOrigin)
+    if (result.error?.code === "42703" && result.error.message.includes("gallagher_origin")) {
+      withOrigin = false
+      result = await page(0, withOrigin)
+    }
+    if (result.error) throw result.error
+    const data = [...(result.data ?? [])]
+    for (let offset = 500; data.length === offset; offset += 500) {
+      const next = await page(offset, withOrigin)
+      if (next.error) throw next.error
+      data.push(...(next.data ?? []))
+    }
     const counts = await db().from("ear_tag_stock_by_range").select("range_id,available,used")
     // Before 047, the schema only allowed available tags. Keep reception usable
     // while the new confirmation migration is waiting to be applied.
@@ -23,7 +41,8 @@ export const earTagsService = {
     if (counts.error && !oldSchema) throw counts.error
     const byRange = new Map((counts.data ?? []).map(row => [row.range_id, row]))
     const getCounts = (id: string, quantity: number) => ({ available: oldSchema ? quantity : Number(byRange.get(id)?.available ?? 0), used: Number(byRange.get(id)?.used ?? 0) })
-    return (data ?? []).map(row => ({ id: row.id, renspaId: row.renspa_id, receivedOn: row.received_on,
+    return data.map(row => ({ id: row.id, renspaId: row.renspa_id, receivedOn: row.received_on,
+      gallagherGroupId: "gallagher_group_id" in row && typeof row.gallagher_group_id === "string" ? row.gallagher_group_id : undefined,
       first: row.first_eid, last: row.last_eid, quantity: row.quantity,
       available: (row.ear_tag_ranges ?? []).reduce((total, range) => total + getCounts(range.id, range.quantity).available, 0),
       used: (row.ear_tag_ranges ?? []).reduce((total, range) => total + getCounts(range.id, range.quantity).used, 0),

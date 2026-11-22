@@ -1,3 +1,4 @@
+import { AppSelect } from "@/components/ui/AppSelect"
 import { useEffect, useMemo, useState } from "react"
 import { FileUp, Search, X } from "lucide-react"
 import { useNavigate } from "react-router-dom"
@@ -35,9 +36,9 @@ export function LivestockRegistryPage() {
     {error && <div className="data-error" role="alert"><strong>No pudimos cargar los animales</strong><span>{error}</span></div>}
     {loading ? <div className="loading-panel">Cargando hacienda…</div> : !error && <>
       <div className="hacienda-filters" role="group" aria-label="Filtrar hacienda por pertenencia">
-        <label>Cliente<select value={filters.clientId} onChange={event => setFilters(current => ({ ...current, clientId:event.target.value, farmId:"", renspaId:"" }))}><option value="">Todos los clientes</option>{options.clients.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
-        <label>Establecimiento<select value={filters.farmId} onChange={event => setFilters(current => ({ ...current, farmId:event.target.value, renspaId:"" }))}><option value="">Todos los establecimientos</option>{options.farms.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
-        <label>RENSPA<select value={filters.renspaId} onChange={event => setFilters(current => ({ ...current, renspaId:event.target.value }))}><option value="">Todos los RENSPA</option>{options.renspas.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label>
+        <label>Cliente<AppSelect value={filters.clientId} onChange={event => setFilters(current => ({ ...current, clientId:event.target.value, farmId:"", renspaId:"" }))}><option value="">Todos los clientes</option>{options.clients.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</AppSelect></label>
+        <label>Establecimiento<AppSelect value={filters.farmId} onChange={event => setFilters(current => ({ ...current, farmId:event.target.value, renspaId:"" }))}><option value="">Todos los establecimientos</option>{options.farms.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</AppSelect></label>
+        <label>RENSPA<AppSelect value={filters.renspaId} onChange={event => setFilters(current => ({ ...current, renspaId:event.target.value }))}><option value="">Todos los RENSPA</option>{options.renspas.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</AppSelect></label>
         <button type="button" className="secondary-button" onClick={() => setFilters({ ...emptyHaciendaFilters })}>Limpiar filtros</button>
       </div>
       <div className="toolbar"><div className="search hacienda-search"><Search size={18}/><input aria-label="Buscar hacienda" value={filters.query} onChange={event => setFilters(current => ({ ...current, query:event.target.value }))} placeholder="Buscar caravana, EID, cliente, establecimiento o RENSPA"/></div></div>

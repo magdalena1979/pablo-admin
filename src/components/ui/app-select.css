@@ -1,0 +1,91 @@
+.app-select {
+  display: inline-grid;
+  min-width: 0;
+  max-width: 100%;
+}
+
+#root .app-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  min-height: var(--ui-control-height);
+  padding: 8px 12px;
+  border: 1px solid var(--ui-border-strong);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  font: 400 var(--ui-control-font-size)/1.5 var(--ui-font);
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-select-trigger > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-select-trigger > svg { flex-shrink: 0; color: var(--ui-text-secondary); }
+#root .app-select-trigger:focus-visible,
+#root .app-select-trigger[aria-expanded="true"] {
+  outline: 0;
+  border-color: var(--ui-primary);
+  box-shadow: var(--ui-focus);
+}
+
+#root .app-select-trigger:disabled {
+  background: var(--ui-surface-muted);
+  color: var(--ui-text-muted);
+  cursor: not-allowed;
+}
+
+#root .app-select-trigger[aria-invalid="true"] { border-color: var(--ui-danger); }
+.app-select-error { margin-top: 3px; color: var(--ui-danger); font-size: 12px; }
+#root .app-select > select[hidden] { display: none; }
+.form-grid .app-select, .compact-list-filters .app-select, .establishment-scope .app-select { width: 100%; }
+.establishment-scope .app-select { min-width: min(100%, 200px); }
+
+#root .app-select-popup {
+  position: fixed;
+  inset: var(--select-top) auto var(--select-bottom) var(--select-left);
+  width: var(--select-width);
+  max-height: var(--select-max-height);
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  box-shadow: var(--ui-shadow-overlay);
+}
+
+.app-select-popup::backdrop { background: transparent; }
+.app-select-popup-inner { padding: 4px; }
+.app-select-options button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 9px;
+  border-radius: var(--ui-radius-sm);
+  font: 400 var(--ui-control-font-size)/1.4 var(--ui-font);
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.app-select-options button > svg { flex-shrink: 0; }
+.app-select-options button[aria-selected="true"],
+.app-select-options button:hover:not(:disabled) {
+  background: var(--ui-primary-soft);
+  color: var(--ui-primary);
+}
+
+#root .app-select-options button:focus-visible { outline-offset: -2px; }
+.app-select-options button:disabled { color: var(--ui-text-muted); cursor: not-allowed; }
+
+@media (max-width: 760px) {
+  .app-select-options button { min-height: 44px; }
+  .compact-list-filters .app-select:only-child { grid-column: 1 / -1; }
+}

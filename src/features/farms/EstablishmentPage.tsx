@@ -1,12 +1,16 @@
-import { ClipboardList, Tag, MapPin, Upload } from "lucide-react"
-import { PageHeader, SectionHeading, Badge } from "@/components/ui/Presentation"
-import { useEffect, useState } from "react"
+import { AppSelect } from "@/components/ui/AppSelect"
+import { Plus, Upload } from "lucide-react"
+import { PageHeader, Badge } from "@/components/ui/Presentation"
+import { useEffect, useState, type ReactNode } from "react"
 import { Link, useParams, useSearchParams } from "react-router-dom"
 import { clientsService, type ClientRecord } from "@/services/clients.service"
 import { livestockRegistryService, type AnimalRow } from "@/services/livestock-registry.service"
 import { EstablishmentAnimalsTable } from "@/features/livestock/EstablishmentAnimalsTable"
 import { AnimalDetail } from "@/features/livestock/LivestockRegistryPage"
 import { EarTagsPage } from "@/features/ear-tags/EarTagsPage"
+import { useAuth } from "@/app/providers/AuthProvider"
+import { WorkDialog } from "@/features/operations/ProfessionalWorksPage"
+import { professionalWorksService } from "@/services/professional-works.service"
 import { supabase } from "@/lib/supabase"
 import "./establishment.css"
 
@@ -58,26 +62,130 @@ export function EstablishmentPage() {
   const visible = animals.filter(row => (!renspaId || row.renspas.some(registry => registry.id === renspaId)) && [row.tagNumber,row.electronicId,row.categoryName,row.herdName].join(" ").toLowerCase().includes(query.toLowerCase()))
   const works = sessions.filter(row => !renspaId || row.renspaIds.includes(renspaId))
   const isHacienda = tab === "hacienda"
-  const renspaFilter = <select aria-label="Filtrar por RENSPA" value={renspaId} onChange={event => change({ renspa: event.target.value })}>
+  const isCaravanas = tab === "caravanas"
+  const isData = tab === "datos"
+  const renspaFilter = <AppSelect aria-label="Filtrar por RENSPA" value={renspaId} onChange={event => change({ renspa: event.target.value })}>
     <option value="">Todos los RENSPA</option>
     {farm.renspas.map(row => <option key={row.id} value={row.id}>{row.number}</option>)}
-  </select>
-  const heading = <PageHeader title={tabs.find(([key]) => key === tab)?.[1]}
-    icon={isHacienda ? undefined : tab === "trabajos" ? <ClipboardList size={27}/> : tab === "caravanas" ? <Tag size={27}/> : <MapPin size={27}/>}
-    actions={<Link className="primary-button" to="/hacienda"><Upload size={17}/>Importar archivos</Link>}/>
-  return <section className={`page establishment-page${isHacienda ? " compact-list-page establishment-hacienda" : ""}`}>
-    {isHacienda ? <div className="compact-list-heading">{heading}</div> : <>
-      <div className="workspace-breadcrumb"><Link to={`/clientes?cliente=${client.id}`}>{client.legalName}</Link><span>/</span><strong>{farm.name}</strong></div>
-      {heading}
-    </>}
+  </AppSelect>
+  return <section className={`page establishment-page compact-list-page${isHacienda ? " establishment-hacienda" : ""}`} aria-label={tabs.find(([key]) => key === tab)?.[1]}>
+    {isHacienda && <div className="compact-list-heading"><PageHeader title="Hacienda" actions={
+      <Link className="primary-button" to="/hacienda"><Upload size={17}/>Importar archivos</Link>
+    }/></div>}
     {isHacienda ? <div className="toolbar compact-list-filters">
       {renspaFilter}
-      <label className="search"><input type="search" aria-label="Buscar animales del establecimiento" placeholder="Buscar caravana o EID" value={query} onChange={event => setQuery(event.target.value)}/></label>
-    </div> : <div className="establishment-filter-bar"><label className="establishment-scope">RENSPA{renspaFilter}</label></div>}
+      <label className="search"><input type="search" aria-label="Buscar animales del establecimiento" placeholder="Caravana o EID" value={query} onChange={event => setQuery(event.target.value)}/></label>
+    </div> : null}
     {tab === "hacienda" && <><EstablishmentAnimalsTable key={id} farmName={farm.name} farmId={id} rows={visible} onSelect={setSelected}/></>}
-    {tab === "trabajos" && <article className="panel"><SectionHeading title="Sesiones registradas" aside={`${works.length} sesiones`}/><div className="table-wrap"><table className="data-table"><thead><tr><th>Fecha del trabajo</th><th>Sesión</th><th>RENSPA</th><th>Animales vinculados</th><th>Origen</th><th>Estado</th></tr></thead><tbody>{works.map(row => <tr key={row.id}><td>{new Date(row.session_date).toLocaleDateString("es-AR", { timeZone:"America/Argentina/Buenos_Aires" })}</td><td>{row.title}</td><td>{row.renspaIds.map(registry => farm.renspas.find(item => item.id === registry)?.number).filter(Boolean).join(", ") || "Sin vínculo registrado"}</td><td>{row.animals || "Sin vínculo registrado"}</td><td>{row.source}</td><td><Badge tone={row.status==="confirmada"?"success":row.status==="anulada"?"danger":"neutral"}>{row.status}</Badge></td></tr>)}{!works.length && <tr><td colSpan={6}>Todavía no hay sesiones para esta selección.</td></tr>}</tbody></table></div></article>}
-    {tab === "caravanas" && <EarTagsPage key={`${id}:${renspaId}`} farmId={id} renspaId={renspaId}/>}
-    {tab === "datos" && <article className="panel"><h2>Datos y RENSPA</h2><p>Cliente: {client.legalName}</p><p>Ubicación: {[farm.address,farm.locality,farm.province].filter(Boolean).join(" · ") || "Sin completar"}</p><div className="table-wrap"><table className="data-table"><thead><tr><th>RENSPA</th><th>CUIG</th><th>CV</th></tr></thead><tbody>{farm.renspas.filter(row => !renspaId || row.id === renspaId).map(row => <tr key={row.id}><td>{row.number}</td><td>{row.cuig || "Sin completar"}</td><td>{row.cv || "Sin completar"}</td></tr>)}</tbody></table></div><Link className="secondary-button" to={`/clientes?cliente=${client.id}`}>Completar ficha o agregar RENSPA</Link></article>}
+    {tab === "trabajos" && <EstablishmentWorks key={id} farm={farm} sessions={works}
+      renspaFilter={farm.renspas.length > 1 || renspaId ? renspaFilter : null}/>}
+    {isCaravanas && <EarTagsPage key={id} farmId={id} renspaId={renspaId} onRenspaChange={value => change({ renspa: value })}/>}
+    {isData && <>
+      <div className="compact-list-heading establishment-data-heading"><PageHeader title="Datos del establecimiento"/></div>
+      {(farm.renspas.length > 1 || renspaId) && <div className="toolbar compact-list-filters">{renspaFilter}</div>}
+      <div className="panel establishment-data-panel">
+        <dl><dt>Cliente</dt><dd>{client.legalName}</dd><dt>Ubicación</dt>
+          <dd>{[farm.address, farm.locality, farm.province].filter(Boolean).join(" · ") || "Sin completar"}</dd></dl>
+        <div className="table-wrap"><table className="data-table" aria-label="RENSPA del establecimiento">
+          <thead><tr><th scope="col">RENSPA</th><th scope="col">CUIG</th><th scope="col">CV</th></tr></thead>
+          <tbody>{farm.renspas.filter(row => !renspaId || row.id === renspaId).map(row =>
+            <tr key={row.id}><td>{row.number}</td><td>{row.cuig || "—"}</td><td>{row.cv || "—"}</td></tr>)}
+            {!farm.renspas.some(row => !renspaId || row.id === renspaId) && <tr><td colSpan={3}>No hay RENSPA para mostrar.</td></tr>}
+          </tbody>
+        </table></div>
+        <Link className="secondary-button" to={`/clientes?cliente=${client.id}`}>Completar ficha o agregar RENSPA</Link>
+      </div>
+    </>}
     {selected && <AnimalDetail animal={selected} onClose={() => setSelected(null)}/>}
   </section>
+}
+
+function EstablishmentWorks({ farm, sessions, renspaFilter }: {
+  farm: ClientRecord["farms"][number]; sessions: Session[]; renspaFilter: ReactNode
+}) {
+  const { profile } = useAuth()
+  const canRegister = profile?.role === "super_admin"
+  const [manual, setManual] = useState<Awaited<ReturnType<typeof professionalWorksService.list>>>([])
+  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<(typeof manual)[number] | null>(null)
+  const [loading, setLoading] = useState(canRegister)
+  const [error, setError] = useState("")
+  const [revision, setRevision] = useState(0)
+  useEffect(() => {
+    if (!canRegister) return
+    let active = true
+    setLoading(true)
+    setError("")
+    void professionalWorksService.list(farm.id).then(rows => {
+      if (active) setManual(rows.filter(row => !row.professional_work_sessions.length))
+    }).catch(() => {
+      if (active) setError("No pudimos cargar los trabajos manuales.")
+    }).finally(() => {
+      if (active) setLoading(false)
+    })
+    return () => { active = false }
+  }, [canRegister, farm.id, revision])
+
+  const rows = [
+    ...sessions.map(row => ({
+      id: `session:${row.id}`, title: row.title, date: row.session_date,
+      dateLabel: row.source === "gallagher"
+        ? row.session_date.slice(0, 10).split("-").reverse().join("/")
+        : new Date(row.session_date).toLocaleDateString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }),
+      source: row.source === "gallagher" ? "Gallagher" : row.source,
+      status: row.status, animals: row.animals || "—",
+      renspa: row.renspaIds.map(id => farm.renspas.find(item => item.id === id)?.number).filter(Boolean).join(", ") || "—",
+      editable: null,
+    })),
+    ...(canRegister ? manual : []).map(row => ({
+      id: `work:${row.id}`, title: row.description, date: row.work_date, dateLabel: row.work_date.split("-").reverse().join("/"),
+      source: "Manual", status: "registrado", animals: "—", renspa: "—", editable: row.invoiced ? null : row,
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date))
+
+  function badge(status: string) {
+    return <Badge tone={status === "confirmada" || status === "registrado" ? "success" : status === "anulada" ? "danger" : "neutral"}>{status}</Badge>
+  }
+
+  return <div className="establishment-works">
+    <div className="compact-list-heading">
+      <PageHeader title="Trabajos realizados" actions={canRegister && <>
+        <button type="button" className="primary-button" onClick={() => setCreating(true)}>
+          <Plus size={17} aria-hidden="true"/>Trabajo manual
+        </button>
+        <Link className="secondary-button" to={`/trabajos?${new URLSearchParams({ establecimiento: farm.id })}`}>Facturación</Link>
+      </>}/>
+    </div>
+    {renspaFilter && <div className="toolbar compact-list-filters">{renspaFilter}</div>}
+    {canRegister && loading && <p role="status">Cargando trabajos manuales…</p>}
+    {canRegister && error && <div className="data-error" role="alert">{error}
+      <button type="button" className="secondary-button" onClick={() => setRevision(value => value + 1)}>Reintentar</button>
+    </div>}
+    <div className="panel data-panel establishment-works-table"><div className="table-wrap">
+      <table className="data-table" aria-label="Trabajos realizados">
+        <thead><tr><th scope="col">Fecha</th><th scope="col">Trabajo</th><th scope="col">RENSPA</th>
+          <th scope="col">Animales vinculados</th><th scope="col">Origen</th><th scope="col">Estado</th>{canRegister && <th scope="col">Acción</th>}</tr></thead>
+        <tbody>{rows.map(row => <tr key={row.id}><td>{row.dateLabel}</td><td>{row.title}</td><td>{row.renspa}</td>
+          <td>{row.animals}</td><td>{row.source}</td><td>{badge(row.status)}</td>
+          {canRegister && <td>{row.editable && <button type="button" className="table-action" onClick={() => setEditing(row.editable)}>Editar</button>}</td>}</tr>)}
+          {!rows.length && <tr><td colSpan={canRegister ? 7 : 6}>No hay trabajos para mostrar.</td></tr>}
+        </tbody>
+      </table>
+    </div></div>
+    <ul className="establishment-works-list" aria-label="Trabajos realizados">
+      {rows.map(row => <li className="panel" key={row.id}>
+        <div>{row.dateLabel} · {row.source}{badge(row.status)}</div>
+        <strong>{row.title}</strong>
+        {row.renspa !== "—" && <p>RENSPA {row.renspa}</p>}
+        {row.animals !== "—" && <p>{row.animals} animales vinculados</p>}
+        {row.editable && <button type="button" className="table-action" onClick={() => setEditing(row.editable)}>Editar</button>}
+      </li>)}
+      {!rows.length && <li className="panel">No hay trabajos para mostrar.</li>}
+    </ul>
+    {canRegister && (creating || editing) && <WorkDialog key={editing?.id ?? "new"} fixedFarm={farm} editing={editing ?? undefined}
+      onClose={() => { setCreating(false); setEditing(null) }} onSaved={() => {
+      setCreating(false); setEditing(null)
+      setRevision(value => value + 1)
+    }}/>}
+  </div>
 }

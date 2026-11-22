@@ -32,3 +32,109 @@
 #root .establishment-hacienda .compact-list-filters .search {
   width: 100%;
 }
+
+.animal-mobile-list { display: none; }
+.establishment-works-list { display: none; }
+
+#root .establishment-data-panel {
+  padding: 12px;
+}
+
+.establishment-data-panel dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0 0 10px;
+  font-size: var(--ui-table-font-size);
+}
+
+.establishment-data-panel dt { color: var(--ui-text-secondary); }
+.establishment-data-panel dd { margin: 0; overflow-wrap: anywhere; }
+.establishment-data-panel > a { margin-top: 10px; }
+
+@media (max-width: 760px) {
+  #root .establishment-hacienda > .compact-list-heading { display: none; }
+  #root .establishment-data-heading,
+  #root .establishment-works-table { display: none; }
+
+  #root .establishment-works .compact-list-heading > .page-heading {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #root .establishment-works .compact-list-heading h1 {
+    font-size: 18px;
+    line-height: 1.25;
+  }
+
+  .establishment-works-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .establishment-works-list > li {
+    padding: 10px 12px;
+    font-size: var(--ui-table-font-size);
+    overflow-wrap: anywhere;
+  }
+
+  .establishment-works-list li > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 4px;
+    color: var(--ui-text-secondary);
+    font-size: var(--ui-table-heading-size);
+  }
+
+  .establishment-works-list p { margin: 3px 0 0; color: var(--ui-text-secondary); }
+  #root .establishment-hacienda .establishment-animals .animal-overview-cards {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(140px, 1fr);
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+  #root .establishment-hacienda .animal-overview-cards article { gap: 6px; padding: 8px; scroll-snap-align: start; }
+  #root .establishment-hacienda .animal-overview-cards .overview-farm { display: none; }
+  #root .establishment-hacienda .animal-overview-cards small { font-size: 11px; line-height: 1.25; margin-bottom: 3px; }
+  #root .establishment-hacienda .animal-overview-cards strong { font-size: 16px; }
+  #root .establishment-hacienda .overview-icon { width: 24px; height: 24px; flex-basis: 24px; border-radius: 8px; }
+  #root .establishment-hacienda .overview-icon svg { width: 16px; height: 16px; }
+  #root .establishment-hacienda .compact-list-filters :is(select, input) { font-size: 13px; }
+
+  #root .establishment-hacienda :is(.animal-desktop-only, .animal-view-toggle, .hacienda-animal-scroll, .animal-table-footer, .establishment-values-note) {
+    display: none;
+  }
+
+  #root .establishment-hacienda .animal-mobile-list { display: block; margin: 0; padding: 0; list-style: none; }
+  .animal-mobile-list li + li { border-top: 1px solid var(--ui-border); }
+  .animal-mobile-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 16px;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 52px;
+    padding: 7px 10px;
+    text-align: left;
+    color: var(--ui-text);
+    cursor: pointer;
+  }
+  #root .animal-mobile-row:focus-visible { outline-offset: -2px; }
+  .animal-mobile-row > svg, .animal-mobile-main strong { color: var(--ui-primary); }
+  .animal-mobile-info, .animal-mobile-last { display: grid; gap: 2px; min-width: 0; }
+  .animal-mobile-last { justify-items: end; }
+  .animal-mobile-main { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 8px; font-size: 13px; }
+  .animal-mobile-main strong { font-size: 15px; }
+  .animal-mobile-row small { color: var(--ui-text-secondary); font-size: 11px; }
+  .animal-mobile-info small { overflow-wrap: anywhere; }
+  .animal-mobile-empty { padding: 12px; }
+}
