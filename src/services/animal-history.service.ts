@@ -14,7 +14,7 @@ export async function loadAnimalHistory(animalId:string):Promise<HistoryEntry[]>
       const raw=row.raw_data as Record<string,unknown> | null
       if(!row.event_date)continue
       imported.add(`${row.import_id}:${row.event_date}`)
-      entries.push({id:`row:${row.id}`,date:row.event_date,title:"Lectura registrada",source:origin.provider,filename:origin.filename,sessionTitle:one(origin.livestock_work_sessions)?.title,notes:row.notes??"",fields:raw?.rawCsv && typeof raw.rawCsv==="object" ? raw.rawCsv as Record<string,unknown> : {}})
+      entries.push({id:`row:${row.id}`,date:row.event_date,csvDate:typeof raw?.sourceDate==="string" && raw.sourceDate.trim() ? raw.sourceDate : row.event_date,title:"Lectura registrada",source:origin.provider,filename:origin.filename,sessionTitle:one(origin.livestock_work_sessions)?.title,notes:row.notes??"",fields:raw?.rawCsv && typeof raw.rawCsv==="object" ? raw.rawCsv as Record<string,unknown> : {}})
     }
     if((data?.length??0)<1000)break
   }

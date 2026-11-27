@@ -33,30 +33,83 @@ export async function parseGallagherCsv(file:File,mapping?:ColumnMapping,fallbac
 }
 export function remapLivestockCsv(document:ParsedCsv,mapping:ColumnMapping,fallbackDate=""):GallagherRow[]{if(isGallagherAnimalHistory(document))return adaptGallagherAnimalHistory(document).map(row=>({...row,status:"NUEVO",weight:null,previousWeight:null,bodyConditionScore:null,days:null,weightGain:null,adg:null,pregnancyStatus:"",breed:String(row.raw.Breed??""),sex:String(row.raw.Sex??""),treatment:"",dose:null,doseUnit:"",operator:""})) as GallagherRow[];if(isGallagherSessionExport(document))return adaptGallagherSessionExport(document).map(row=>({...row,status:row.eventDate?"NUEVO":"ERROR",message:row.eventDate?undefined:"Fecha u hora inválida",weight:null,previousWeight:null,bodyConditionScore:null,days:null,weightGain:null,adg:null,pregnancyStatus:"",breed:"",sex:"",treatment:"",dose:null,doseUnit:"",operator:""})) as GallagherRow[];return(validateRows(mapRows(document,mapping),fallbackDate) as Omit<GallagherRow,"externalEvents"|"uninterpretedValues">[]).map(row=>({...row,externalEvents:[],uninterpretedValues:[]}))}
 
-export const livestockRegistryService={
- async animals(farmId?:string|null):Promise<AnimalRow[]> {
-  const animals:AnimalRow[]=[]
-  let offset=0,more=true
-  while(more){
-   let query=client().from("animals").select("id,farm_id,tag_number,electronic_id,electronic_id_raw,sex,breed,status,livestock_categories(name),herds(name),animal_events(event_type,event_date),farms(name,client_id,clients(legal_name)),ear_tags(ear_tag_ranges(ear_tag_receipts(farm_renspas(id,number,farm_id))))").eq("active",true).is("reverted_at",null).is("animal_events.voided_at",null).order("id").range(offset,offset+999)
-   if(farmId)query=query.eq("farm_id",farmId)
-   const{data,error}=await query
-   if(error)throw error
-   for(const row of data??[]){
+const animalColumns = "id,farm_id,tag_number,electronic_id,electronic_id_raw,sex,breed,status,livestock_categories(name),herds(name),animal_events(event_type,event_date),farms!animals_farm_id_fkey(name,client_id,clients(legal_name)),ear_tags(ear_tag_ranges(ear_tag_receipts(farm_renspas(id,number,farm_id))))"
+
+function animalQuery() {
+  return client().from("animals").select(animalColumns)
+    .eq("active", true).is("reverted_at", null).is("animal_events.voided_at", null)
+    .order("event_date", { referencedTable: "animal_events", ascending: false })
+    .order("id", { referencedTable: "animal_events" })
+    .limit(1, { referencedTable: "animal_events" })
+}
+
+type AnimalQueryRow = NonNullable<Awaited<ReturnType<typeof animalQuery>>["data"]>[number]
+function mapAnimal(row: AnimalQueryRow): AnimalRow {
     const farm=one(row.farms),owner=one(farm?.clients??null)
     const renspas=new Map<string,{id:string;number:string}>()
     for(const tag of row.ear_tags??[]){
      const range=one(tag.ear_tag_ranges),receipt=one(range?.ear_tag_receipts??null),registry=one(receipt?.farm_renspas??null)
      if(registry&&registry.farm_id===row.farm_id)renspas.set(registry.id,{id:registry.id,number:registry.number})
     }
-    const events=[...(row.animal_events??[])].sort((a,b)=>String(b.event_date).localeCompare(String(a.event_date)))
-    animals.push({id:row.id,farmId:row.farm_id,farmName:farm?.name??null,clientId:farm?.client_id??null,clientName:owner?.legal_name??null,
+    const latestEvent = row.animal_events?.[0]
+    return {id:row.id,farmId:row.farm_id,farmName:farm?.name??null,clientId:farm?.client_id??null,clientName:owner?.legal_name??null,
      renspas:[...renspas.values()].sort((a,b)=>a.number.localeCompare(b.number)),tagNumber:row.tag_number,electronicId:row.electronic_id,electronicIdRaw:row.electronic_id_raw,sex:row.sex,breed:row.breed,status:row.status,
-     categoryName:one(row.livestock_categories)?.name??null,herdName:one(row.herds)?.name??null,lastEvent:events[0]?.event_type??null,lastEventDate:events[0]?.event_date??null})
-   }
-   more=(data?.length??0)===1000;offset+=1000
+     categoryName:one(row.livestock_categories)?.name??null,herdName:one(row.herds)?.name??null,lastEvent:latestEvent?.event_type??null,lastEventDate:latestEvent?.event_date??null}
+}
+
+export interface OverviewAnimal {
+  id: string
+  herdName: string | null
+}
+const registryMatch = ",registry_match:ear_tags!inner(ear_tag_ranges!inner(ear_tag_receipts!inner()))"
+
+export const establishmentPageSize = 20
+export const livestockRegistryService={
+ async overviewAnimals(farmId: string, renspaId: string, signal: AbortSignal): Promise<OverviewAnimal[]> {
+  const animals: OverviewAnimal[] = []
+  type OverviewRow = { id: string; herds: { name: string } | { name: string }[] | null }
+  for (let offset = 0; ; offset += 1000) {
+    let query = client().from("animals").select("id,herds(name)" + (renspaId ? registryMatch : ""))
+      .eq("farm_id", farmId).eq("active", true).is("reverted_at", null)
+    if (renspaId) query = query.eq("registry_match.ear_tag_ranges.ear_tag_receipts.renspa_id", renspaId)
+    const { data, error } = await query.order("id").range(offset, offset + 999)
+      .abortSignal(signal).overrideTypes<OverviewRow[], { merge: false }>()
+    if (error) throw error
+    animals.push(...(data ?? []).map(row => ({ id: row.id, herdName: one(row.herds)?.name ?? null })))
+    if ((data?.length ?? 0) < 1000) return animals
+  }
+ },
+ async animals(farmId?:string|null):Promise<AnimalRow[]> {
+  const animals: AnimalRow[] = []
+  for (let offset = 0; ; offset += 1000) {
+    let query = animalQuery().order("id").range(offset, offset + 999)
+    if (farmId) query = query.eq("farm_id", farmId)
+    const { data, error } = await query
+    if (error) throw error
+    animals.push(...(data ?? []).map(mapAnimal))
+    if ((data?.length ?? 0) < 1000) break
   }
   return animals.sort((a,b)=>a.tagNumber.localeCompare(b.tagNumber,"es",{numeric:true}))
+ },
+ async establishmentPage(farmId: string, renspaId: string, search: string, page: number, signal: AbortSignal) {
+  const registryJoin = renspaId ? registryMatch : ""
+  let query = client().from("animals").select(animalColumns + registryJoin, { count: "exact" })
+    .eq("farm_id", farmId).eq("active", true).is("reverted_at", null).is("animal_events.voided_at", null)
+    .order("event_date", { referencedTable: "animal_events", ascending: false })
+    .order("id", { referencedTable: "animal_events" })
+    .limit(1, { referencedTable: "animal_events" })
+  if (renspaId) query = query.eq("registry_match.ear_tag_ranges.ear_tag_receipts.renspa_id", renspaId)
+  if (search) {
+    const literal = search.replace(/[\\%_*]/g, character => "\\" + character)
+      .replaceAll("\\", "\\\\").replaceAll('"', '\\"')
+    query = query.or(`tag_number.ilike."%${literal}%",electronic_id.ilike."%${literal}%"`)
+  }
+  const offset = (page - 1) * establishmentPageSize
+  const { data, error, count } = await query.order("tag_number").order("id")
+    .range(offset, offset + establishmentPageSize - 1).abortSignal(signal)
+    .overrideTypes<AnimalQueryRow[], { merge: false }>()
+  if (error) throw error
+  return { rows: (data ?? []).map(mapAnimal), total: count ?? 0 }
  },
  async events(animalId:string):Promise<AnimalEvent[]>{const{data,error}=await client().from("animal_events").select("id,event_type,event_date,source,notes,metadata").eq("animal_id",animalId).is("voided_at",null).order("event_date",{ascending:false});if(error)throw error;return(data??[]).map(x=>({id:x.id,type:x.event_type,date:x.event_date,source:x.source,notes:x.notes,metadata:x.metadata??{}}))},
  async imports(farmId?:string|null):Promise<ImportHistory[]>{let q=client().from("livestock_imports").select("id,filename,imported_at,total_rows,created_animals,existing_animals,error_rows,status").order("imported_at",{ascending:false}).limit(20);if(farmId)q=q.eq("farm_id",farmId);const{data,error}=await q;if(error)throw error;return(data??[]).map(x=>({id:x.id,filename:x.filename,importedAt:x.imported_at,total:x.total_rows,created:x.created_animals,existing:x.existing_animals,errors:x.error_rows,status:x.status}))},

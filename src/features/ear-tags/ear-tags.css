@@ -141,12 +141,6 @@
   }
 
   .tag-last-eid-inline strong { color: var(--ui-text); font-variant-numeric: tabular-nums; }
-  #root .tag-entry-page :is(input, select):focus-visible {
-    outline: 0;
-    border-color: var(--ui-primary);
-    box-shadow: var(--ui-focus);
-  }
-
   #root .tag-entry-page .tag-destination {
     border: 0;
     border-radius: 0;

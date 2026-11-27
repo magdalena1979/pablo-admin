@@ -1,6 +1,6 @@
 export interface HistoryEntry {
   id:string; date:string; title:string; source:string; filename:string; notes:string;
-  fields:Record<string,unknown>; sessionTitle?:string
+  fields:Record<string,unknown>; sessionTitle?:string; csvDate?:string
 }
 const identity = new Set(["numero de etiqueta","tag number","id electronico","electronic id","eid","nlis","fecha","date","time","hora","notas","notes"])
 export function recordedFields(raw:unknown):Record<string,string> {

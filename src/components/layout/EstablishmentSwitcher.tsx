@@ -24,8 +24,8 @@ export function EstablishmentSwitcher() {
       const element = menu.current
       if (element?.open && event.target instanceof Node && !element.contains(event.target)) element.open = false
     }
-    document.addEventListener("pointerdown", closeOutside)
-    return () => document.removeEventListener("pointerdown", closeOutside)
+    document.addEventListener("pointerdown", closeOutside, true)
+    return () => document.removeEventListener("pointerdown", closeOutside, true)
   }, [])
 
   return <details ref={menu} className={`header-establishment${fieldId ? " is-scoped" : ""}`}

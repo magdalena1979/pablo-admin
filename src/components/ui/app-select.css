@@ -27,8 +27,7 @@
 #root .app-select-trigger:focus-visible,
 #root .app-select-trigger[aria-expanded="true"] {
   outline: 0;
-  border-color: var(--ui-primary);
-  box-shadow: var(--ui-focus);
+  border-color: var(--ui-text-secondary);
 }
 
 #root .app-select-trigger:disabled {

@@ -5,8 +5,12 @@ import { ArrowLeft, ChevronRight, Plus, Search, X } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
 import { useFarmScope } from "@/app/providers/FarmScopeProvider"
 import { clientsService, type ClientRecord, type FarmInput } from "@/services/clients.service"
-import { Link, useSearchParams } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
+import { CsvImportPanel } from "@/features/livestock/CsvImportPanel"
+import { EarTagsPage } from "@/features/ear-tags/EarTagsPage"
 import { ClientsGrid } from "./ClientsGrid"
+import { LivestockProfileFields } from "@/features/farms/LivestockProfileFields"
+import { emptyLivestockProfile, livestockActivityLabels } from "@/features/farms/livestock-profile"
 import "./client-registration.css"
 
 const fields = [ ["legalName", "Razón social", "text"], ["taxId", "CUIT", "text"], ["address", "Domicilio", "text"], ["responsible", "Responsable", "text"], ["phone", "Teléfono", "tel"], ["email", "Mail", "email"] ] as const
@@ -23,6 +27,7 @@ export function ClientsPage() {
   const [saveError, setSaveError] = useState("")
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const selectedId = params.get("cliente")
   function setSelectedId(id: string | null) { setParams(id ? { cliente: id } : {}) }
@@ -30,10 +35,35 @@ export function ClientsPage() {
   const [clientDraft, setClientDraft] = useState<typeof emptyClient | null>(null)
   const [editing, setEditing] = useState(false)
   const [farmDraft, setFarmDraft] = useState<typeof emptyFarm | null>(null)
+  const [createdFarm, setCreatedFarm] = useState<{ id: string; clientId: string; name: string } | null>(null)
   const [renspaFarmId, setRenspaFarmId] = useState<string | null>(null)
   const [renspaDraft, setRenspaDraft] = useState(emptyRenspa)
   useEffect(()=>{if(canManage && params.get("nuevo")==="1"){setEditing(false);setSaveError("");setClientDraft({...emptyClient});const next=new URLSearchParams(params);next.delete("nuevo");setParams(next,{replace:true})}},[canManage,params,setParams])
   const selected = clients.find(client => client.id === selectedId)
+  const action = params.get("accion")
+  const originFarm = selected?.farms.find(farm => farm.id === params.get("campo"))
+  const originParams = new URLSearchParams({ tab: "datos" })
+  const originRenspa = originFarm?.renspas.find(row => row.id === params.get("renspa"))
+  if (originRenspa) originParams.set("renspa", originRenspa.id)
+  const origin = originFarm ? `/establecimientos/${originFarm.id}?${originParams}` : null
+  const clientPath = `/clientes?${new URLSearchParams({ cliente: selectedId ?? "" })}`
+  function openEdit(client: ClientRecord) {
+    setSaveError("")
+    setEditing(true)
+    setClientDraft({ ...client, color: client.color || "#2D6AA3" })
+  }
+  useEffect(() => {
+    if (!canManage || !selected || !originFarm || (action !== "editar" && action !== "renspa")) return
+    if (action === "editar") openEdit(selected)
+    else {
+      setSaveError("")
+      setRenspaFarmId(originFarm.id)
+      setRenspaDraft({ ...emptyRenspa })
+    }
+    const next = new URLSearchParams(params)
+    next.delete("accion")
+    setParams(next, { replace: true })
+  }, [action, canManage, originFarm, params, selected, setParams])
   const visible = clients.filter(client => [client.legalName, client.taxId, client.address, client.responsible, client.phone, client.email,
     ...client.farms.flatMap(farm => [farm.name, farm.address, farm.locality, farm.province, ...farm.renspas.flatMap(row => [row.number, row.cuig, row.cv])])
   ].join(" ").toLocaleLowerCase("es-AR").includes(query.trim().toLocaleLowerCase("es-AR")))
@@ -51,21 +81,45 @@ export function ClientsPage() {
     catch (cause) { setSaveError(errorMessage(cause)) }
     finally { savingRef.current = false; setSaving(false) }
   }
-  function closeDialogs() { if (savingRef.current) return; setClientDraft(null); setFarmDraft(null); setRenspaFarmId(null); setSaveError("") }
+  function closeDialogs() {
+    if (savingRef.current) return
+    setClientDraft(null); setFarmDraft(null); setRenspaFarmId(null); setSaveError("")
+    if (origin) navigate(origin, { replace: true })
+  }
   if (loading && !clients.length) return <section className="page compact-list-page"><div className="loading-panel">Cargando clientes…</div></section>
+  if (selected && action === "csv") return <section className="page compact-list-page">
+    <CsvImportPanel key={selected.id} pageTitle="Importar CSV" backTo={clientPath} destinationLabel={selected.legalName}
+      destination={{ clientId: selected.id, farmId: selected.farms.length === 1 ? selected.farms[0].id : undefined }}/>
+  </section>
+  if (selected && action === "caravanas") return <EarTagsPage key={selected.id} clientId={selected.id} backTo={clientPath}/>
   return <section className="page compact-list-page"><div className={selected ? "registration" : "registration clients-list"}>
     {loadError && <div className="data-error" role="alert"><strong>No pudimos cargar los clientes</strong><span>{loadError}</span><button className="secondary-button" onClick={() => void load()}>Reintentar</button></div>}
     {selected ? <>
       <div className="compact-list-heading clients-compact-heading">
         <button type="button" className="text-button compact-back" aria-label="Volver a Clientes" onClick={() => setSelectedId(null)}><ArrowLeft size={20} aria-hidden="true"/></button>
-        <PageHeader title={selected.legalName || "Cliente sin completar"} actions={canManage && <button type="button" className="secondary-button" onClick={() => { setSaveError(""); setEditing(true); setClientDraft({ ...selected, color: selected.color || "#2D6AA3" }) }}>Editar ficha</button>}/>
+        <PageHeader title={selected.legalName || "Cliente sin completar"} actions={<div className="heading-actions">
+          <Link className="secondary-button" to={clientPath + "&accion=csv"}>Importar CSV</Link>
+          {canManage && <>
+            <Link className="secondary-button" to={clientPath + "&accion=caravanas&nueva=1"}>Ingresar caravanas</Link>
+            <button type="button" className="secondary-button" onClick={() => openEdit(selected)}>Editar ficha</button>
+          </>}
+        </div>}/>
       </div>
       <article className="panel"><dl className="client-details">{fields.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{selected[key] || "Sin completar"}</dd></div>)}</dl></article>
       <div className="page-heading registration-section-heading"><div><span className="eyebrow">ESTABLECIMIENTOS DEL CLIENTE</span><h2>Establecimientos</h2></div>{canManage && <button className="primary-button" onClick={() => { setSaveError(""); setFarmDraft({ ...emptyFarm }) }}><Plus size={17}/>Agregar establecimiento</button>}</div>
+      {createdFarm?.clientId === selected.id && <div className="panel client-farm-confirmation">
+        <span role="status">Se guardó <strong>{createdFarm.name}</strong>.</span>
+        <Link className="secondary-button" to={`/establecimientos/${createdFarm.id}`}>Abrir establecimiento</Link>
+      </div>}
       {!selected.farms.length && <article className="panel empty-farms"><h2>Sin establecimientos</h2><p>Agregá un establecimiento y luego sus RENSPA.</p></article>}
       {selected.farms.map(farm => <article className="panel client-farm-card" key={farm.id}>
         <div className="form-section-title"><div><h2><Link to={`/establecimientos/${farm.id}`}>{farm.name || "Establecimiento sin completar"} →</Link></h2><span>{[farm.address, farm.locality, farm.province].filter(Boolean).join(" · ") || "Ubicación sin completar"}</span></div>{canManage && <button className="secondary-button" onClick={() => { setSaveError(""); setRenspaFarmId(farm.id); setRenspaDraft({ ...emptyRenspa }) }}><Plus size={16}/>Agregar RENSPA</button>}</div>
         {farm.renspas.length ? <div className="table-wrap"><table className="data-table"><caption className="client-table-caption">RENSPA de {farm.name || "este establecimiento"}</caption><thead><tr><th>RENSPA</th><th>CUIG</th><th>CV</th></tr></thead><tbody>{farm.renspas.map(row => <tr key={row.id}><td>{row.number || "Sin completar"}</td><td>{row.cuig || "Sin completar"}</td><td>{row.cv || "Sin completar"}</td></tr>)}</tbody></table></div> : <p className="client-empty-note">Este establecimiento todavía no tiene RENSPA.</p>}
+        {farm.livestockProfile.activities.length > 0 && <p className="client-farm-activities">
+          {farm.livestockProfile.activities.map(activity =>
+            livestockActivityLabels[activity] + (farm.livestockProfile.activities.length > 1 && activity === farm.livestockProfile.primary ? " (principal)" : "")
+          ).join(" · ")}
+        </p>}
       </article>)}
     </> : <>
       <div className="compact-list-heading clients-compact-heading">
@@ -94,21 +148,25 @@ export function ClientsPage() {
       event.preventDefault()
       void save(async () => {
         const id = await clientsService.saveClient(clientDraft, editing ? selectedId ?? undefined : undefined)
-        setSelectedId(id); setClientDraft(null); void refresh().catch(() => undefined)
+        setClientDraft(null)
+        if (origin) navigate(origin, { replace: true })
+        else setSelectedId(id)
+        void refresh().catch(() => undefined)
       })
     }}><fieldset className="registration-inputs" disabled={saving}><div className="form-grid"><label>Color del cliente<input type="color" value={clientDraft.color} onChange={event=>setClientDraft({...clientDraft,color:event.target.value})}/></label>{fields.map(([key, label, type]) => <label key={key}>{label}<input required={key === "legalName"} autoFocus={key === "legalName"} type={type} value={clientDraft[key]} onChange={event => setClientDraft({ ...clientDraft, [key]: event.target.value })}/></label>)}</div></fieldset><RegistrationActions saving={saving} error={saveError} onClose={closeDialogs} label="Guardar cliente"/></form></RegistrationDialog>}
     {farmDraft && selected && <RegistrationDialog title="Agregar establecimiento" onClose={closeDialogs}><p>Cliente: <strong>{selected.legalName}</strong></p><form onSubmit={event => {
       event.preventDefault()
       void save(async () => {
-        await clientsService.addFarm(selected.id, farmDraft)
+        const id = await clientsService.addFarm(selected.id, farmDraft)
+        setCreatedFarm({ id, clientId: selected.id, name: farmDraft.name.trim() })
         setFarmDraft(null)
         // Refresh scope independently: a scope load failure must not offer to reinsert a saved farm.
         void refresh().catch(() => undefined)
       })
-    }}><fieldset className="registration-inputs" disabled={saving}><div className="form-grid">{([["name", "Nombre del establecimiento"], ["address", "Domicilio / ubicación"], ["locality", "Localidad"], ["province", "Provincia"]] as const).map(([key, label]) => <label key={key}>{label}<input required={key === "name"} autoFocus={key === "name"} value={farmDraft[key]} onChange={event => setFarmDraft({ ...farmDraft, [key]: event.target.value })}/></label>)}<label>Modalidad de servicio<AppSelect required value={farmDraft.serviceMode} onChange={event => setFarmDraft({ ...farmDraft, serviceMode: event.target.value as FarmInput["serviceMode"] })}><option value="">Seleccionar modalidad</option><option value="veterinaria">Servicio veterinario</option><option value="administracion_integral">Administración integral</option></AppSelect></label></div></fieldset><RegistrationActions saving={saving} error={saveError} onClose={closeDialogs} label="Guardar establecimiento"/></form></RegistrationDialog>}
+    }}><fieldset className="registration-inputs" disabled={saving}><div className="form-grid">{([["name", "Nombre del establecimiento"], ["address", "Domicilio / ubicación"], ["locality", "Localidad"], ["province", "Provincia"]] as const).map(([key, label]) => <label key={key}>{label}<input required={key === "name"} autoFocus={key === "name"} value={farmDraft[key]} onChange={event => setFarmDraft({ ...farmDraft, [key]: event.target.value })}/></label>)}<label>Modalidad de servicio<AppSelect required value={farmDraft.serviceMode} onChange={event => setFarmDraft({ ...farmDraft, serviceMode: event.target.value as FarmInput["serviceMode"] })}><option value="">Seleccionar modalidad</option><option value="veterinaria">Servicio veterinario</option><option value="administracion_integral">Administración integral</option></AppSelect></label></div><LivestockProfileFields value={farmDraft.livestockProfile ?? emptyLivestockProfile} onChange={livestockProfile => setFarmDraft({ ...farmDraft, livestockProfile })}/></fieldset><RegistrationActions saving={saving} error={saveError} onClose={closeDialogs} label="Guardar establecimiento"/></form></RegistrationDialog>}
     {renspaFarmId && selected && <RegistrationDialog title="Agregar RENSPA" onClose={closeDialogs}><p>Establecimiento: <strong>{selected.farms.find(farm => farm.id === renspaFarmId)?.name}</strong></p><form onSubmit={event => {
       event.preventDefault()
-      void save(async () => { await clientsService.addRenspa(renspaFarmId, renspaDraft); setRenspaFarmId(null) })
+      void save(async () => { await clientsService.addRenspa(renspaFarmId, renspaDraft); setRenspaFarmId(null); if (origin) navigate(origin, { replace: true }) })
     }}><fieldset className="registration-inputs" disabled={saving}><div className="form-grid">{([["number", "RENSPA"], ["cuig", "CUIG"], ["cv", "CV"]] as const).map(([key, label]) => <label key={key}>{label}<input required={key === "number"} autoFocus={key === "number"} value={renspaDraft[key]} placeholder={key === "number" ? "00.000.0.00000/00" : undefined} onChange={event => setRenspaDraft({ ...renspaDraft, [key]: event.target.value })}/></label>)}</div></fieldset><RegistrationActions saving={saving} error={saveError} onClose={closeDialogs} label="Guardar RENSPA"/></form></RegistrationDialog>}
   </div></section>
 }

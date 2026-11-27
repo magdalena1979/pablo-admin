@@ -11,6 +11,7 @@ export function AppSelect({ children, className, id, disabled, required, value, 
   const list = useRef<HTMLDivElement>(null)
   const popupId = useId()
   const typed = useRef({ value: "", at: 0 })
+  const backdropPress = useRef(false)
   const [label, setLabel] = useState("")
   const [selection, setSelection] = useState({ index: -1, text: "" })
   const [options, setOptions] = useState<Option[]>([])
@@ -66,6 +67,7 @@ export function AppSelect({ children, className, id, disabled, required, value, 
       index, label: item.label, disabled: item.disabled || Boolean(item.closest("optgroup:disabled")),
     })))
     typed.current = { value: "", at: 0 }
+    backdropPress.current = false
     setOpen(true)
   }
 
@@ -97,6 +99,11 @@ export function AppSelect({ children, className, id, disabled, required, value, 
   }
 
   const fieldName = ariaLabel || label || "Seleccionar opción"
+  function isBackdropClick(dialog: HTMLDialogElement, x: number, y: number) {
+    const bounds = dialog.getBoundingClientRect()
+    return x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom
+  }
+
   return <span className="app-select">
     <button ref={trigger} id={id} type="button" className={`app-select-trigger${className ? ` ${className}` : ""}`}
       disabled={disabled} aria-label={`${fieldName}: ${selection.text || "Sin selección"}`}
@@ -110,8 +117,16 @@ export function AppSelect({ children, className, id, disabled, required, value, 
       onInvalid={event => { event.preventDefault(); setInvalid(true); trigger.current?.focus() }}>{children}</select>
     {invalid && <small className="app-select-error" id={`${popupId}-error`}>Elegí una opción.</small>}
     {open && <dialog ref={popup} className="app-select-popup" aria-label={fieldName}
-      onCancel={event => { event.preventDefault(); setOpen(false) }} onKeyDown={navigate}
-      onClick={event => { if (event.target === event.currentTarget) setOpen(false) }}>
+      onCancel={event => { event.preventDefault(); event.stopPropagation(); setOpen(false) }} onKeyDown={navigate}
+      onPointerDown={event => {
+        backdropPress.current = event.target === event.currentTarget &&
+          isBackdropClick(event.currentTarget, event.clientX, event.clientY)
+      }}
+      onClick={event => {
+        if (backdropPress.current && event.target === event.currentTarget &&
+          isBackdropClick(event.currentTarget, event.clientX, event.clientY)) setOpen(false)
+        backdropPress.current = false
+      }}>
       <div className="app-select-popup-inner">
         <div id={popupId} ref={list} className="app-select-options" role="listbox" aria-label={fieldName}>
           {options.map(option => <button type="button" key={option.index} role="option" disabled={option.disabled}

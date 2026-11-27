@@ -4,12 +4,14 @@ import { parseCsvFile } from "@/features/livestock/import-engine/parser"
 import { csvReadings, matchReadings, type CsvReading, type KnownAnimal, type RegisteredTag, type MatchedReading } from "@/features/livestock/drive-matching"
 import { findConfirmedCsvs, type CsvConfirmationResult } from "./gallagher-csv-confirm.service"
 
+import { csvDestinationBlocker, type CsvDestination, type CsvSessionType, type CsvHealthLink } from "@/features/livestock/csv-confirmation"
+
 export interface CsvFileInfo { id: string; name: string; size: number }
-export interface CsvFileReview { file: CsvFileInfo; hash: string; headers: string[]; rawRows: Record<string,string>[]; rows: MatchedReading[]; error: string; empty: boolean; confirmation?:CsvConfirmationResult }
+export interface CsvFileReview { sessionType?: CsvSessionType; healthLinks?: Record<string, CsvHealthLink>; file: CsvFileInfo; hash: string; headers: string[]; rawRows: Record<string,string>[]; rows: MatchedReading[]; error: string; empty: boolean; confirmation?:CsvConfirmationResult }
 const one = <T,>(value: T | T[] | null): T | null => Array.isArray(value) ? value[0] ?? null : value
 const chunks = <T,>(values: T[], size: number): T[][] => Array.from({ length: Math.ceil(values.length / size) }, (_, index) => values.slice(index * size, (index + 1) * size))
 
-export async function reviewGallagherCsv(files: File[], signal: AbortSignal, progress: (text: string) => void): Promise<CsvFileReview[]> {
+export async function reviewGallagherCsv(files: File[], signal: AbortSignal, progress: (text: string) => void, destination?: CsvDestination): Promise<CsvFileReview[]> {
   if (!supabase) throw new Error("Supabase no está configurado.")
   if (!files.length) throw new Error("Seleccioná al menos un archivo CSV.")
   if (files.length > 500) throw new Error("Podés revisar hasta 500 CSV a la vez.")
@@ -61,5 +63,12 @@ export async function reviewGallagherCsv(files: File[], signal: AbortSignal, pro
   progress("Verificando archivos ya vinculados…")
   const confirmed=await findConfirmedCsvs(pending.map(file=>file.hash))
   signal.throwIfAborted()
-  return pending.map(file => ({ file: file.file, hash: file.hash, headers: file.headers, rawRows: file.rawRows, error: file.error, empty: file.empty, confirmation:confirmed[file.hash], rows: matchReadings(file.readings, stock, [...animals.values()]) }))
+  const knownAnimals = [...animals.values()]
+  return pending.map(file => {
+    const rows = matchReadings(file.readings, stock, knownAnimals)
+    const destinationError = csvDestinationBlocker(rows, destination)
+    return { file: file.file, hash: file.hash, headers: file.headers, rawRows: file.rawRows,
+      error: file.error || destinationError, empty: file.empty,
+      confirmation: destinationError ? undefined : confirmed[file.hash], rows }
+  })
 }

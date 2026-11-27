@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/app/router/ProtectedRoute"
 
 import { FarmDetailPage } from "@/features/farms/FarmDetailPage"
 import { EstablishmentPage } from "@/features/farms/EstablishmentPage"
+import { GeneralHealthPlanPage } from "@/features/farms/GeneralHealthPlanPage"
 import { GallagherFilesPage } from "@/features/livestock/GallagherFilesPage"
 import { FarmScopeProvider } from "@/app/providers/FarmScopeProvider"
 import { HealthPage } from "@/features/health/HealthPage"
@@ -32,6 +33,7 @@ export function App() {
           <Route path="campos/:id" element={<FarmDetailPage />} />
           <Route path="hacienda/:sharedCsvId?" element={<GallagherFilesPage />} />
           <Route path="sanidad" element={<HealthPage />} />
+          <Route path="plan-sanitario" element={<GeneralHealthPlanPage />} />
           <Route path="labores" element={<OperationsPage />} />
           <Route path="trabajos" element={<ProfessionalWorksPage />} />
           <Route path="configuracion" element={<ConfigurationPage />} />

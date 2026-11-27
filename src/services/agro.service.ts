@@ -17,7 +17,7 @@ export const agroService = {
     return data as string
   },
   async getFarm(id: string): Promise<FarmDetail> {
-    const { data, error } = await client().from("farms").select("id,name,service_mode,locality,color,clients(*),lots(id,name,hectares,current_use),herds(id),animals(id)").eq("id", id).single()
+    const { data, error } = await client().from("farms").select("id,name,service_mode,locality,color,clients(*),lots(id,name,hectares,current_use),herds(id),animals!animals_farm_id_fkey(id)").eq("id", id).single()
     if (error) throw error
     const owner = Array.isArray(data.clients) ? data.clients[0] : data.clients
     return { id: data.id, name: data.name, clientName: owner?.legal_name ?? "Sin cliente", serviceMode: data.service_mode as ServiceMode, locality: data.locality ?? "Buenos Aires", color: owner?.color ?? data.color, totalHectares: (data.lots ?? []).reduce((sum, lot) => sum + Number(lot.hectares), 0), lotCount: data.lots?.length ?? 0, herdCount: data.herds?.length ?? 0, animalCount: data.animals?.length ?? 0, lots: (data.lots ?? []).map(lot => ({ id: lot.id, name: lot.name, hectares: Number(lot.hectares), currentUse: lot.current_use ?? "Sin uso definido" })) }
@@ -31,7 +31,7 @@ export const agroService = {
     if (error) throw error
   },
   async listFarms(): Promise<FarmListItem[]> {
-    const { data, error } = await client().from("farms").select("id,name,service_mode,locality,color,clients(*),lots(id,hectares),herds(id),animals(id)").eq("active", true).order("name")
+    const { data, error } = await client().from("farms").select("id,name,service_mode,locality,color,clients(*),lots(id,hectares),herds(id),animals!animals_farm_id_fkey(id)").eq("active", true).order("name")
     if (error) throw error
     return (data ?? []).map(row => {
       const owner = Array.isArray(row.clients) ? row.clients[0] : row.clients

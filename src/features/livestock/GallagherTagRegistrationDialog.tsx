@@ -5,6 +5,7 @@ import { clientsService, type ClientRecord } from "@/services/clients.service"
 import { earTagsService } from "@/services/ear-tags.service"
 import type { CsvFileReview } from "@/services/gallagher-csv-preview.service"
 import { MAX_BAG_QUANTITY, type TagSex } from "@/features/ear-tags/ear-tag-ranges"
+import type { CsvDestination } from "./csv-confirmation"
 import "./csv-import-dialog.css"
 
 export function missingGallagherTags(file: CsvFileReview) {
@@ -13,8 +14,9 @@ export function missingGallagherTags(file: CsvFileReview) {
     .map(row => [row.eid, row])).values())
 }
 
-export function GallagherTagRegistrationDialog({ file, onBack, onRegistered }: {
+export function GallagherTagRegistrationDialog({ file, destination, onBack, onRegistered }: {
   file: CsvFileReview
+  destination?: CsvDestination
   onBack(): void
   onRegistered(): void
 }) {
@@ -25,8 +27,8 @@ export function GallagherTagRegistrationDialog({ file, onBack, onRegistered }: {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
   const [attempt, setAttempt] = useState(0)
-  const [farmId, setFarmId] = useState("")
-  const [renspaId, setRenspaId] = useState("")
+  const [farmId, setFarmId] = useState(destination?.farmId ?? "")
+  const [selectedRenspaId, setRenspaId] = useState("")
   const [sex, setSex] = useState<TagSex | "">("")
   const [query, setQuery] = useState("")
   const [selected, setSelected] = useState(new Set<string>())
@@ -35,6 +37,9 @@ export function GallagherTagRegistrationDialog({ file, onBack, onRegistered }: {
   const missing = missingGallagherTags(file)
   const farms = clients.flatMap(client => client.farms.map(farm => ({ ...farm, client: client.legalName })))
   const farm = farms.find(item => item.id === farmId)
+  const fixedRenspa = farm?.renspas.find(item => item.id === destination?.renspaId)
+    ?? (destination?.farmId && farm?.renspas.length === 1 ? farm.renspas[0] : undefined)
+  const renspaId = fixedRenspa?.id ?? selectedRenspaId
   const text = query.trim().toLowerCase()
   const visible = missing.filter(row => row.eid.includes(text.replace(/\s/g, "")) || row.tag.toLowerCase().includes(text))
   const selectedAllVisible = visible.length > 0 && visible.every(row => selected.has(row.eid))
@@ -49,15 +54,16 @@ export function GallagherTagRegistrationDialog({ file, onBack, onRegistered }: {
     let active = true
     setLoading(true)
     setLoadError("")
-    void clientsService.list().then(rows => {
-      if (active) setClients(rows)
+    void clientsService.list(destination?.farmId).then(rows => {
+      if (!active) return
+      setClients(destination?.clientId ? rows.filter(row => row.id === destination.clientId) : rows)
     }).catch(() => {
       if (active) setLoadError("No pudimos cargar los establecimientos.")
     }).finally(() => {
       if (active) setLoading(false)
     })
     return () => { active = false }
-  }, [attempt])
+  }, [attempt, destination?.clientId, destination?.farmId])
 
   function selectEids(eids: string[], checked: boolean) {
     setSelected(previous => {
@@ -73,7 +79,7 @@ export function GallagherTagRegistrationDialog({ file, onBack, onRegistered }: {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (savingNow.current || !sex || !renspaId || !selected.size || selected.size > MAX_BAG_QUANTITY) return
+    if (savingNow.current || !sex || !farm?.renspas.some(item => item.id === renspaId) || !selected.size || selected.size > MAX_BAG_QUANTITY) return
     const conflict = file.rows.find(row => selected.has(row.eid) && row.sex && row.sex !== sex)
     if (conflict) {
       setError(`El destino elegido contradice el sexo del CSV para el EID ${conflict.eid}.`)
@@ -107,14 +113,14 @@ export function GallagherTagRegistrationDialog({ file, onBack, onRegistered }: {
       {loadError && <div className="form-error" role="alert">{loadError} <button type="button" className="text-button" onClick={() => setAttempt(value => value + 1)}>Reintentar</button></div>}
       <fieldset className="registration-inputs" disabled={saving || loading || Boolean(loadError)}>
         <div className="form-grid gallagher-tag-destination">
-          <label>Establecimiento<AppSelect required value={farmId} onChange={event => { setFarmId(event.target.value); setRenspaId("") }}>
+          {destination?.farmId ? <label>Establecimiento<input readOnly value={farm?.name ?? ""}/></label> : <label>Establecimiento<AppSelect required value={farmId} onChange={event => { setFarmId(event.target.value); setRenspaId("") }}>
             <option value="">Seleccionar</option>
             {farms.map(item => <option key={item.id} value={item.id}>{item.name} · {item.client}</option>)}
-          </AppSelect></label>
-          <label>RENSPA<AppSelect required value={renspaId} disabled={!farm?.renspas.length} onChange={event => setRenspaId(event.target.value)}>
+          </AppSelect></label>}
+          <label>RENSPA{fixedRenspa ? <input readOnly value={fixedRenspa.number}/> : <AppSelect required value={renspaId} disabled={!farm?.renspas.length} onChange={event => setRenspaId(event.target.value)}>
             <option value="">Seleccionar</option>
             {farm?.renspas.map(item => <option key={item.id} value={item.id}>{item.number}</option>)}
-          </AppSelect></label>
+          </AppSelect>}</label>
           <label>Destino<AppSelect required value={sex} onChange={event => setSex(event.target.value as TagSex | "")}>
             <option value="">Seleccionar</option><option value="macho">Machos</option><option value="hembra">Hembras</option>
           </AppSelect></label>

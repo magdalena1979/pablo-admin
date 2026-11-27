@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase"
-import { csvConfirmationPayload } from "@/features/livestock/csv-confirmation"
+import { csvConfirmationPayload, usesHealthPlan } from "@/features/livestock/csv-confirmation"
 import type { CsvFileReview } from "./gallagher-csv-preview.service"
 
 export interface CsvConfirmationResult {
@@ -22,10 +22,14 @@ export async function findConfirmedCsvs(hashes: string[]): Promise<Record<string
 }
 export async function confirmGallagherCsv(review: CsvFileReview): Promise<CsvConfirmationResult> {
   if (!supabase) throw new Error("Supabase no está configurado.")
-  const { data, error } = await supabase.rpc("confirm_gallagher_csv_links", csvConfirmationPayload(review))
+  const payload = csvConfirmationPayload(review)
+  const health = usesHealthPlan(review.sessionType)
+  const { data, error } = health
+    ? await supabase.rpc("confirm_gallagher_csv_with_health_plan", { ...payload, p_health_links: review.healthLinks })
+    : await supabase.rpc("confirm_gallagher_csv_with_session_type", payload)
   if (error) {
-    if (error.code === "PGRST202") throw new Error("Falta aplicar la migración 047 para habilitar la confirmación de vínculos.")
-    if (error.code === "42883") throw new Error("Falta una función de importación requerida. Revisá que estén aplicadas las migraciones de Gallagher anteriores a la 047.")
+    if (error.code === "PGRST202") throw new Error(health ? "Revisá que estén aplicadas las migraciones 064 y 065 del plan sanitario." : "Falta aplicar la migración 058 para guardar el tipo de jornada con el CSV.")
+    if (error.code === "42883") throw new Error("Falta una función de importación requerida. Revisá que estén aplicadas las migraciones 047 y 057.")
     if (error.code === "42501") throw new Error("No tenés permiso para confirmar la vinculación.")
     throw error
   }

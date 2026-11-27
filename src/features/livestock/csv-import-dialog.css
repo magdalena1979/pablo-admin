@@ -91,3 +91,14 @@ dialog.csv-partial-confirm{position:fixed;inset:0;margin:auto;width:min(460px,ca
   #root .gallagher-tag-dialog .dialog-actions { margin-top: 10px; padding-top: 10px; gap: 8px; }
   .csv-register-tags { width: 100%; justify-content: center; }
 }
+
+.csv-session-type {
+  display: grid;
+  gap: 5px;
+  max-width: 260px;
+  margin-block: 10px;
+}
+
+.csv-session-type small {
+  color: var(--ui-text-secondary);
+}

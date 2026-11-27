@@ -22,7 +22,7 @@ function message(cause: unknown) {
   if (cause && typeof cause === "object" && "code" in cause && cause.code === "42501") return "No tenés permiso para recibir caravanas."
   return cause && typeof cause === "object" && "message" in cause ? String(cause.message) : "No pudimos completar la operación. Intentá nuevamente."
 }
-export function EarTagsPage({ farmId = "", renspaId = "", onRenspaChange }: { farmId?: string; renspaId?: string; onRenspaChange?(value: string): void } = {}) {
+export function EarTagsPage({ farmId = "", clientId = "", renspaId = "", onRenspaChange, backTo }: { farmId?: string; clientId?: string; renspaId?: string; onRenspaChange?(value: string): void; backTo?: string } = {}) {
   const { profile } = useAuth()
   const canReceive = profile?.role === "super_admin"
   const [params,setParams]=useSearchParams()
@@ -42,11 +42,11 @@ export function EarTagsPage({ farmId = "", renspaId = "", onRenspaChange }: { fa
   const [filterSex, setFilterSex] = useState("")
   async function load() {
     setLoading(true); setLoadError("")
-    try { const [nextClients, nextReceipts] = await Promise.all([clientsService.list(), earTagsService.list()]); setClients(nextClients); setReceipts(nextReceipts) }
+    try { const [nextClients, nextReceipts] = await Promise.all([clientsService.list(farmId || undefined), earTagsService.list()]); setClients(clientId ? nextClients.filter(row => row.id === clientId) : nextClients); setReceipts(nextReceipts) }
     catch (cause) { setLoadError(message(cause)) }
     finally { setLoading(false) }
   }
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load() }, [farmId, clientId])
   useEffect(() => {
     if (!canReceive || loading || loadError || params.get("nueva") !== "1") return
     const origin = (state as { receptionReturnTo?: unknown } | null)?.receptionReturnTo
@@ -63,7 +63,7 @@ export function EarTagsPage({ farmId = "", renspaId = "", onRenspaChange }: { fa
   }, [canReceive, loading, loadError, params, setParams, state])
 
   function finishReception(receiptId?: string) {
-    const origin = receptionReturnTo.current
+    const origin = receptionReturnTo.current ?? backTo
     receptionReturnTo.current = null
     setCreating(false)
     const confirmation = receiptId
@@ -98,13 +98,13 @@ export function EarTagsPage({ farmId = "", renspaId = "", onRenspaChange }: { fa
       .map(range => ({ receipt, range, related }))
   })
   return <>
-  {creating && <div hidden={showLots}><BagForm initialFarmId={farmId} initialRenspaId={renspaId}
+  {creating && <div hidden={showLots}><BagForm initialClientId={clientId} initialFarmId={farmId || (clientId && farms.length === 1 ? farms[0].id : "")} initialRenspaId={renspaId}
     clients={farmId ? clients.map(client => ({ ...client, farms: client.farms.filter(farm => farm.id === farmId) })).filter(client => client.farms.length) : clients}
     active={!showLots} onBackToLots={() => { setShowLots(true); window.scrollTo(0, 0) }}
     onClose={() => finishReception()} onSaved={finishReception}/></div>}
   {(!creating || showLots) && <section className="page ear-tags-page compact-list-page">
     <div className="compact-list-heading">
-      {!farmId && <Link to="/inicio" className="text-button compact-back" aria-label="Volver a Inicio">
+      {!farmId && <Link to={backTo ?? "/inicio"} className="text-button compact-back" aria-label={backTo ? "Volver al cliente" : "Volver a Inicio"}>
         <ArrowLeft size={20} aria-hidden="true"/>
       </Link>}
       <PageHeader title="Caravanas" icon={farmId ? <Tag size={27}/> : undefined} actions={canReceive && <button type="button" className="primary-button" aria-label={creating ? "Seguir cargando" : "Agregar recepción"} title="Agregar recepción" disabled={loading || Boolean(loadError)} onClick={() => { setSaved(""); setShowLots(false); setCreating(true) }}><Plus size={20} aria-hidden="true"/><span className="tag-mobile-create-label">{creating ? "Continuar" : "Agregar"}</span></button>}/>
@@ -188,9 +188,9 @@ export function EarTagsPage({ farmId = "", renspaId = "", onRenspaChange }: { fa
   </>
 }
 
-function BagForm({ clients, onClose, onSaved, active, onBackToLots, initialFarmId = "", initialRenspaId = "" }: {
+function BagForm({ clients, onClose, onSaved, active, onBackToLots, initialClientId = "", initialFarmId = "", initialRenspaId = "" }: {
   clients: ClientRecord[]; onClose(): void; onSaved(id: string): void
-  active: boolean; onBackToLots(): void; initialFarmId?: string; initialRenspaId?: string
+  active: boolean; onBackToLots(): void; initialClientId?: string; initialFarmId?: string; initialRenspaId?: string
 }) {
   const title = useRef<HTMLHeadingElement>(null)
   const reviewSummary = useRef<HTMLElement>(null)
@@ -200,7 +200,7 @@ function BagForm({ clients, onClose, onSaved, active, onBackToLots, initialFarmI
     ?? (scopedFarm?.renspas.length === 1 ? scopedFarm.renspas[0] : undefined)
   const [draft, setDraft] = useState(() => ({ ...newBag(), renspaId: scopedRenspa?.id ?? "" }))
   const [allocations, setAllocations] = useState<TagAllocation[]>([{ quantity: "", sex: "" }])
-  const [clientId, setClientId] = useState(() => clients.find(client => client.farms.some(farm => farm.id === initialFarmId))?.id || "")
+  const [clientId, setClientId] = useState(() => clients.find(client => client.farms.some(farm => farm.id === initialFarmId))?.id || initialClientId)
   const [farmId, setFarmId] = useState(initialFarmId)
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
@@ -278,14 +278,14 @@ function BagForm({ clients, onClose, onSaved, active, onBackToLots, initialFarmI
         {scopedFarm && <p className="tag-receipt-context"><strong>{scopedFarm.name}</strong> · {selectedClient?.legalName}</p>}
         <div className={`form-grid tag-receipt-fields${scopedFarm ? " tag-receipt-scoped" : ""}`}>
           {!scopedFarm && <>
-          <label>Cliente<AppSelect required value={clientId} onChange={event => { setClientId(event.target.value); setFarmId(""); change({ renspaId: "" }) }}><option value="">Seleccionar cliente</option>{clients.map(client => <option key={client.id} value={client.id}>{client.legalName}</option>)}</AppSelect></label>
+          {initialClientId ? <p className="tag-receipt-context"><strong>{selectedClient?.legalName}</strong></p> : <label>Cliente<AppSelect required value={clientId} onChange={event => { setClientId(event.target.value); setFarmId(""); change({ renspaId: "" }) }}><option value="">Seleccionar cliente</option>{clients.map(client => <option key={client.id} value={client.id}>{client.legalName}</option>)}</AppSelect></label>}
           <label>Establecimiento<AppSelect required disabled={!clientId} value={farmId} onChange={event => { setFarmId(event.target.value); change({ renspaId: "" }) }}><option value="">Seleccionar establecimiento</option>{farms.map(farm => <option key={farm.id} value={farm.id}>{farm.name}</option>)}</AppSelect></label>
           </>}
           <label>RENSPA{scopedRenspa ? <input readOnly value={scopedRenspa.number}/> :
             <AppSelect required disabled={!farmId} value={draft.renspaId} onChange={event => change({ renspaId: event.target.value })}><option value="">Seleccionar RENSPA</option>{renspas.map(renspa => <option key={renspa.id} value={renspa.id}>{renspa.number}</option>)}</AppSelect>}</label>
           <label>Fecha de recepción<input required type="date" value={draft.receivedOn} onChange={event => change({ receivedOn: event.target.value })}/></label>
         </div>
-        {(!clients.length || (selectedClient && !farms.length) || (selectedFarm && !renspas.length)) && <p className="tag-helper">Completá el cliente, establecimiento y RENSPA en <Link to="/clientes">Clientes</Link> antes de registrar la bolsa.</p>}
+        {(!clients.length || (selectedClient && !farms.length) || (selectedFarm && !renspas.length)) && <p className="tag-helper">Completá el cliente, establecimiento y RENSPA en <Link to={scopedFarm ? `/establecimientos/${scopedFarm.id}?tab=datos` : selectedClient ? `/clientes?cliente=${selectedClient.id}` : "/clientes"}>la ficha correspondiente</Link> antes de registrar la bolsa.</p>}
         <section className="form-section"><h2>Numeración recibida</h2><div className="form-grid tag-numbering-row">
           <label>Cantidad<input required type="number" min="1" max={MAX_BAG_QUANTITY} step="1" value={draft.declaredQuantity} onChange={event => change({ declaredQuantity: event.target.value })}/></label>
           <label>Desde EID<input required inputMode="numeric" value={draft.first} onChange={event => change({ first: event.target.value })}/></label>

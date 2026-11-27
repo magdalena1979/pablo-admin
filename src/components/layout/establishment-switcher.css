@@ -21,11 +21,6 @@
 
 .header-establishment-trigger::-webkit-details-marker { display: none; }
 .header-establishment.is-scoped .header-establishment-trigger { border-left-color: var(--farm-color); }
-#root .header-establishment-trigger:focus-visible {
-  outline: 0;
-  box-shadow: var(--ui-focus);
-}
-
 .header-field-icon {
   display: grid;
   place-items: center;

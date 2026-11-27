@@ -4,9 +4,10 @@ import { Link } from "react-router-dom"
 import { PageHeader } from "@/components/ui/Presentation"
 import { reviewGallagherCsv, type CsvFileReview } from "@/services/gallagher-csv-preview.service"
 import { confirmGallagherCsv, type CsvConfirmationResult } from "@/services/gallagher-csv-confirm.service"
-import { csvConfirmationBlocker, eligibleCsvBatch } from "./csv-confirmation"
+import { csvConfirmationBlocker, eligibleCsvBatch, type CsvDestination, type CsvSessionType, type CsvHealthLink } from "./csv-confirmation"
 import { runCsvBatch, type CsvBatchReport } from "./csv-batch"
 import { CsvImportDialog } from "./CsvImportDialog"
+import { CsvReviewProgressDialog } from "./CsvReviewProgressDialog"
 import { EmptyCsvDialog } from "./EmptyCsvDialog"
 import { GallagherTagRegistrationDialog } from "./GallagherTagRegistrationDialog"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -19,7 +20,7 @@ const shareErrors: Record<string, string> = {
   "recepcion-fallida": "No pudimos recibir el archivo. Volvé a compartirlo o usá Importar CSV.",
 }
 
-export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId }: { onConfirmed?(): void; pageTitle?: string; sharedCsvId?: string }) {
+export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId, destination, destinationLabel, backTo }: { onConfirmed?(): void; pageTitle?: string; sharedCsvId?: string; destination?: CsvDestination; destinationLabel?: string; backTo?: string }) {
   const { profile } = useAuth()
   const [confirming, setConfirming] = useState(false)
   const [confirmed, setConfirmed] = useState<Record<string,CsvConfirmationResult>>({})
@@ -30,8 +31,11 @@ export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId }: { onConf
   const [stopping, setStopping] = useState(false)
   const stopRequested = useRef(false)
   const sourceFiles = useRef<File[]>([])
+  const healthLinks = useRef(new Map<string, Record<string, CsvHealthLink>>())
+  const sessionTypes = useRef(new Map<string, CsvSessionType>())
   const saving = useRef(false)
   const [busy, setBusy] = useState(false), [progress, setProgress] = useState("")
+  const [cancellingReview, setCancellingReview] = useState(false)
   const [error, setError] = useState(""), [reviews, setReviews] = useState<CsvFileReview[] | null>(null)
   const [fileId, setFileId] = useState("")
   const [registeringTags, setRegisteringTags] = useState<CsvFileReview | null>(null)
@@ -67,19 +71,22 @@ export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId }: { onConf
       if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : shareErrors["recepcion-fallida"])
     } finally {
       shareRequest.current = null
-      if (!controller.signal.aborted) setReadingShare(false)
+      setReadingShare(false)
+      setCancellingReview(false)
     }
   }
   async function review(files: File[]) {
     if (request.current || saving.current || !files.length) return
     const controller = new AbortController(); request.current = controller
     sourceFiles.current=files
-    setBusy(true); setError(""); setReviews(null); setFileId(""); setFileErrors({}); setBatchReport(null)
+    setBusy(true); setProgress("Preparando la revisión…"); setError(""); setReviews(null); setFileId(""); setFileErrors({}); setBatchReport(null)
     try {
-      const checked = await reviewGallagherCsv(files, controller.signal, setProgress)
+      const checked = await reviewGallagherCsv(files, controller.signal, setProgress, destination)
       if (controller.signal.aborted) return
       const empty = checked.filter(file => file.empty && !file.error)
-      const next = checked.filter(file => !file.empty || Boolean(file.error))
+      const next = checked.filter(file => !file.empty || Boolean(file.error)).map(file => ({
+        ...file, sessionType: sessionTypes.current.get(file.hash), healthLinks: healthLinks.current.get(file.hash),
+      }))
       if (empty.length) {
         setEmptyNotice({names:empty.map(file=>file.file.name),hasOtherFiles:next.length>0})
       }
@@ -90,7 +97,12 @@ export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId }: { onConf
       setReviews(next); setFileId(next.find(file => !file.confirmation&&!csvConfirmationBlocker(file))?.file.id ?? next.find(file => file.rows.length)?.file.id ?? next[0]?.file.id ?? "")
     } catch (cause) {
       if (!controller.signal.aborted) setError(cause && typeof cause === "object" && "message" in cause ? String(cause.message) : "No pudimos revisar los CSV.")
-    } finally { if (request.current === controller) { request.current = null; setBusy(false); setProgress("") } }
+    } finally { if (request.current === controller) { request.current = null; setBusy(false); setProgress(""); setCancellingReview(false) } }
+  }
+  function cancelReview() {
+    setCancellingReview(true)
+    request.current?.abort()
+    shareRequest.current?.abort()
   }
   const selected = reviews?.find(file => file.file.id === fileId)
   const completed = selected ? confirmed[selected.hash] : undefined
@@ -133,6 +145,27 @@ export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId }: { onConf
   }
 
 
+  function changeSessionType(file: CsvFileReview, sessionType: CsvSessionType) {
+    sessionTypes.current.set(file.hash, sessionType)
+    setReviews(current => current?.map(item => item.hash === file.hash ? { ...item, sessionType } : item) ?? null)
+    setFileErrors(current => {
+      const next = { ...current }
+      delete next[file.file.id]
+      return next
+    })
+  }
+
+  function changeHealthLink(file: CsvFileReview, farmId: string, link: CsvHealthLink) {
+    const next = { ...healthLinks.current.get(file.hash), [farmId]: link }
+    healthLinks.current.set(file.hash, next)
+    setReviews(current => current?.map(item => item.hash === file.hash ? { ...item, healthLinks: next } : item) ?? null)
+    setFileErrors(current => {
+      const errors = { ...current }
+      delete errors[file.file.id]
+      return errors
+    })
+  }
+
   const importButtons = <div className="csv-import-buttons">
     {sourceFiles.current.length > 0 && reviews && reviews.length > 1 &&
       <button type="button" className="secondary-button" disabled={busy || confirming || readingShare} onClick={() => void review(sourceFiles.current)}>Revisar nuevamente</button>}
@@ -146,12 +179,13 @@ export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId }: { onConf
     {emptyNotice&&<EmptyCsvDialog names={emptyNotice.names} hasOtherFiles={emptyNotice.hasOtherFiles} onClose={()=>setEmptyNotice(null)} onChoose={()=>{setEmptyNotice(null);input.current?.click()}}/>}
     <input ref={input} type="file" multiple hidden onChange={event => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void review(files) }}/>
     {pageTitle ? <div className="compact-list-heading">
-      <Link to="/inicio" className="text-button compact-back" aria-label="Volver a Inicio"><ArrowLeft size={20} aria-hidden="true"/></Link>
+      <Link to={backTo ?? "/inicio"} className="text-button compact-back" aria-label={backTo ? "Volver" : "Volver a Inicio"}><ArrowLeft size={20} aria-hidden="true"/></Link>
       <PageHeader title={pageTitle} actions={hasSharedCsv ? undefined : importButtons}/>
     </div> : <div className="drive-review-heading">
       <div><strong>Importar CSV de Gallagher</strong><p>Seleccioná los archivos de tu computadora. Se identifican cliente, establecimiento y RENSPA por las caravanas ya cargadas.</p></div>
       {importButtons}
     </div>}
+    {destinationLabel && <p className="tag-receipt-context"><strong>Destino:</strong> {destinationLabel}</p>}
     {hasSharedCsv && <div className="panel csv-shared-intake">
       <div className="csv-shared-intake-heading">
         <strong>CSV compartido</strong>
@@ -162,12 +196,16 @@ export function CsvImportPanel({ onConfirmed, pageTitle, sharedCsvId }: { onConf
       </button>
     </div>}
     {shareError && <div className="form-error" role="alert">{shareError}</div>}
-    {busy && <div className="drive-review-progress" role="status"><span>{progress}</span><button type="button" className="text-button" onClick={() => request.current?.abort()}><X size={15}/>Cancelar revisión</button></div>}
+    {(busy || readingShare) && <CsvReviewProgressDialog
+      progress={busy ? progress : "Abriendo los archivos compartidos…"}
+      cancelling={cancellingReview}
+      onCancel={cancelReview}
+    />}
     {error && <div className="form-error" role="alert">{error}</div>}
-    {registeringTags ? <GallagherTagRegistrationDialog file={registeringTags} onBack={() => setRegisteringTags(null)}
+    {registeringTags ? <GallagherTagRegistrationDialog file={registeringTags} destination={destination} onBack={() => setRegisteringTags(null)}
       onRegistered={() => {
         setRegisteringTags(null)
         void review(sourceFiles.current)
-      }}/> : reviews&&!emptyNotice&&<CsvImportDialog files={reviews} confirmed={confirmed} errors={fileErrors} busy={confirming} progress={batchProgress} canConfirm={profile?.role==="super_admin"} onConfirm={()=>void confirmBatch()} onReview={()=>void review(sourceFiles.current)} onRegisterTags={profile?.role==="super_admin" ? setRegisteringTags : undefined} onCancel={()=>{if(saving.current)return;setReviews(null);setFileId("");setError("");setBatchReport(null);sourceFiles.current=[]}}/>}
+      }}/> : reviews&&!emptyNotice&&<CsvImportDialog onHealthLinkChange={changeHealthLink} onSessionTypeChange={changeSessionType} files={reviews} confirmed={confirmed} errors={fileErrors} busy={confirming} progress={batchProgress} canConfirm={profile?.role==="super_admin"} onConfirm={()=>void confirmBatch()} onReview={()=>void review(sourceFiles.current)} onRegisterTags={profile?.role==="super_admin" ? setRegisteringTags : undefined} onCancel={()=>{if(saving.current)return;setReviews(null);setFileId("");setError("");setBatchReport(null);sourceFiles.current=[];sessionTypes.current.clear();healthLinks.current.clear()}}/>}
   </section>
 }

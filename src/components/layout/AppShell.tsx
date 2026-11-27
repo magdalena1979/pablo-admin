@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react"
 import { NavLink, Link, Outlet, useLocation } from "react-router-dom"
 import {
-  PanelLeftClose, PanelLeftOpen, House, Bell, UsersRound, Tag, Beef,
+  PanelLeftClose, PanelLeftOpen, House, Bell, UsersRound, Tag, Beef, HeartPulse, List,
   ClipboardList, Settings, ArrowLeft, ChevronDown, Plus, ShieldCheck, X,
 } from "lucide-react"
 import { useAuth } from "@/app/providers/AuthProvider"
@@ -14,10 +14,13 @@ const generalLinks = [
   { path: "/inicio", label: "Inicio", icon: House },
   { path: "/clientes", label: "Clientes", icon: UsersRound },
   { path: "/trabajos", label: "Trabajos", icon: ClipboardList },
+  { path: "/plan-sanitario", label: "Plan sanitario", icon: HeartPulse },
 ]
 
 const farmTabs = [
   { tab: "hacienda", label: "Hacienda", shortLabel: "Hacienda", icon: Beef },
+  { tab: "animales", label: "Animales", shortLabel: "Animales", icon: List },
+  { tab: "sanidad", label: "Sanidad", shortLabel: "Sanidad", icon: HeartPulse },
   { tab: "trabajos", label: "Trabajos realizados", shortLabel: "Trabajos", icon: ClipboardList },
   { tab: "caravanas", label: "Caravanas", shortLabel: "Caravanas", icon: Tag },
   { tab: "datos", label: "Datos del establecimiento", shortLabel: "Datos", icon: Settings },
@@ -32,17 +35,25 @@ export function AppShell() {
   const farmId = /^\/establecimientos\/([^/]+)/.exec(location.pathname)?.[1] || ""
   const activeFarm = farms.find(farm => farm.id === farmId)
   const params = new URLSearchParams(location.search)
-  const currentTab = params.get("tab") || "hacienda"
+  const currentTab = (params.get("tab") || "hacienda") === "hacienda" && params.get("vista") === "animales" ? "animales" : params.get("tab") || "hacienda"
+  const clientId = location.pathname === "/clientes" ? params.get("cliente") : null
+  const clientAction = (action: string) => `/clientes?${new URLSearchParams({ cliente: clientId ?? "", accion: action })}`
   const canReceive = profile?.role === "super_admin"
-  const links = generalLinks.filter(link => link.path !== "/trabajos" || canReceive)
-  const farmPath = (tab: string) => `/establecimientos/${farmId}?${new URLSearchParams({ ...Object.fromEntries(params), tab })}`
+  const links = generalLinks.filter(link =>
+    (link.path !== "/trabajos" || canReceive) && (link.path !== "/plan-sanitario" || profile?.role === "super_admin"))
+  const farmPath = (tab: string) => {
+    const next = new URLSearchParams(params)
+    next.delete("vista")
+    next.set("tab", tab)
+    return `/establecimientos/${farmId}?${next}`
+  }
   const farmLinks = farmTabs.map(tab => ({
     ...tab,
     path: farmPath(tab.tab),
   }))
   const mobileReceptionPath = farmId
     ? `/establecimientos/${farmId}?${new URLSearchParams({ ...Object.fromEntries(params), tab: "caravanas", nueva: "1" })}`
-    : "/caravanas?nueva=1"
+    : clientId ? clientAction("caravanas") + "&nueva=1" : "/caravanas?nueva=1"
   const mobileReceptionState = { receptionReturnTo: location.pathname + location.search + location.hash }
 
   return <div className={`app-frame${collapsed ? " nav-is-collapsed" : ""}${farmId ? " is-client-scope" : ""}`}
@@ -84,7 +95,7 @@ export function AppShell() {
         <AccountMenu key={location.key} mobile/>
       </header>
       {farmId && <nav className="mobile-farm-nav" aria-label="Secciones del establecimiento">
-        {farmLinks.filter(({ tab }) => tab === "hacienda" || tab === "datos").map(({ tab, path, label, shortLabel }) => (
+        {farmLinks.filter(({ tab }) => ["hacienda", "animales", "sanidad", "datos"].includes(tab)).map(({ tab, path, label, shortLabel }) => (
           <Link key={tab} to={path} aria-label={label} aria-current={currentTab === tab ? "page" : undefined}>{shortLabel}</Link>
         ))}
       </nav>}
@@ -98,11 +109,11 @@ export function AppShell() {
       {farmId && <Link to={farmPath("trabajos")} className="mobile-nav-item" aria-current={currentTab === "trabajos" ? "page" : undefined}>
         <ClipboardList size={20} aria-hidden="true"/><span>Trabajos</span>
       </Link>}
-      {(canReceive || farmId) && <Link to={canReceive ? mobileReceptionPath : farmPath("caravanas")} state={canReceive ? mobileReceptionState : undefined}
+      {(canReceive || farmId) && <Link to={canReceive ? mobileReceptionPath : farmPath("caravanas")} state={canReceive && !clientId ? mobileReceptionState : undefined}
         className="mobile-nav-item" aria-current={(farmId ? currentTab === "caravanas" : location.pathname === "/caravanas") ? "page" : undefined}>
         <Tag size={20} aria-hidden="true"/><span>Caravanas</span>
       </Link>}
-      <NavLink to="/hacienda" className="mobile-nav-item mobile-csv-link" aria-label="Importar CSV">
+      <NavLink to={farmId ? farmPath("importar") : clientId ? clientAction("csv") : "/hacienda"} className="mobile-nav-item mobile-csv-link" aria-label="Importar CSV">
         <Plus size={18} aria-hidden="true"/><span>CSV</span>
       </NavLink>
     </nav>
@@ -138,8 +149,8 @@ function AccountMenu({ mobile = false }: { mobile?: boolean }) {
     function closeOutside(event: PointerEvent) {
       if (event.target instanceof Node && !menu.current?.contains(event.target)) setIsOpen(false)
     }
-    document.addEventListener("pointerdown", closeOutside)
-    return () => document.removeEventListener("pointerdown", closeOutside)
+    document.addEventListener("pointerdown", closeOutside, true)
+    return () => document.removeEventListener("pointerdown", closeOutside, true)
   }, [isOpen])
 
   return <div className={mobile ? "mobile-account" : "sidebar-profile"} ref={menu} onKeyDown={event => {

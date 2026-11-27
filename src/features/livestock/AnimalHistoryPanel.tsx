@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react"
 import { X } from "lucide-react"
 import type { AnimalRow } from "@/services/livestock-registry.service"
 import { loadAnimalHistory } from "@/services/animal-history.service"
+import { reproductiveHistory } from "@/features/farms/cria-tacto"
+import { formatLivestockDate } from "@/features/farms/livestock-date"
 import { latestRecorded, recordedFields, type HistoryEntry } from "./animal-history"
 import "./animal-history.css"
 const format=(date:string)=>new Intl.DateTimeFormat("es-AR",{dateStyle:"medium",timeStyle:"short",timeZone:"America/Argentina/Buenos_Aires"}).format(new Date(date))
@@ -35,11 +37,12 @@ export function AnimalHistoryPanel({animal,onClose}:{animal:AnimalRow;onClose():
   return <div className="animal-history-backdrop" onClick={onClose}><aside ref={panel} tabIndex={-1} className="animal-history-panel" role="dialog" aria-modal="true" aria-labelledby="animal-history-title" onClick={event=>event.stopPropagation()}>
     <header className="animal-history-heading"><div><span className="eyebrow">FICHA DEL ANIMAL</span><h2 id="animal-history-title">Caravana {animal.tagNumber}</h2><p>EID {animal.electronicIdRaw??animal.electronicId??"Sin completar"}</p></div><button className="icon-button" aria-label="Cerrar ficha del animal" onClick={onClose}><X/></button></header>
     <div className="animal-history-owner"><strong>{animal.clientName||"Cliente sin vínculo"} · {animal.farmName||"Establecimiento sin vínculo"}</strong><span><strong>Sexo: {animal.sex === "macho" ? "Macho" : animal.sex === "hembra" ? "Hembra" : animal.sex || "Sin completar"}</strong></span><span>RENSPA {animal.renspas.map(row=>row.number).join(", ")||"sin vínculo"}</span></div>
-    <nav className="workspace-tabs" aria-label="Secciones de la ficha">{[["resumen","Resumen"],["historial","Historial"],["datos","Datos registrados"]].map(([key,label])=><button key={key} className={tab===key?"active":""} aria-current={tab===key?"page":undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+    <nav className="workspace-tabs" aria-label="Secciones de la ficha">{[["resumen","Resumen"],["historial","Historial"],["tactos","Tactos y sangrados"],["datos","Datos registrados"]].map(([key,label])=><button key={key} className={tab===key?"active":""} aria-current={tab===key?"page":undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
     <div className="animal-history-content">
       {loading?<p role="status">Cargando historial…</p>:error?<div role="alert" className="data-error"><strong>No pudimos cargar el historial</strong><span>{error}</span><button className="secondary-button" onClick={()=>setAttempt(value=>value+1)}>Reintentar</button></div>:<>
       {tab==="resumen"&&<><dl className="animal-history-summary"><div><dt>Sexo registrado</dt><dd>{animal.sex||"Sin completar"}</dd></div><div><dt>Estado</dt><dd>{animal.status}</dd></div><div><dt>Primera fecha en este historial</dt><dd>{entries.length?format(entries[entries.length-1].date):"Sin registros"}</dd></div><div><dt>Última fecha en este historial</dt><dd>{entries.length?format(entries[0].date):"Sin registros"}</dd></div></dl><h3>Últimos valores registrados</h3><p>Cada dato conserva su fecha. Una lectura posterior sin ese dato no lo actualiza.</p><Traits rows={latest}/></>}
       {tab==="historial"&&<><h3>Historial del animal</h3><p>{entries.length} registros guardados · Más recientes primero</p>{!entries.length?<p>Todavía no hay registros vinculados a este animal.</p>:<ol className="animal-timeline">{entries.map(entry=><li key={entry.id}><time dateTime={entry.date}>{format(entry.date)}</time><h4>{entry.title}</h4>{entry.sessionTitle&&<p>Sesión: {entry.sessionTitle}</p>}{entry.notes&&<p>{entry.notes}</p>}<FieldList fields={recordedFields(entry.fields)}/><small>Origen: {entry.source}{entry.filename?` · ${entry.filename}`:""}</small></li>)}</ol>}<p className="animal-history-footnote">Solo aparecen registros guardados. Seleccionar un CSV sin confirmar su vinculación no lo agrega al historial.</p></>}
+      {tab==="tactos"&&<ReproductiveHistory entries={entries}/>}
       {tab==="datos"&&<><h3>Datos registrados en los archivos</h3><p>Valores originales, sin interpretar abreviaturas ni convertirlos en diagnósticos.</p><Traits rows={latest}/></>}
       </>}
     </div>
@@ -47,3 +50,26 @@ export function AnimalHistoryPanel({animal,onClose}:{animal:AnimalRow;onClose():
 }
 function FieldList({fields}:{fields:Record<string,string>}){return Object.keys(fields).length?<dl className="animal-history-fields">{Object.entries(fields).map(([key,value])=><div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl>:null}
 function Traits({rows}:{rows:ReturnType<typeof latestRecorded>}){return rows.length?<div className="animal-traits">{rows.map(row=><article key={row.field}><strong>{row.field}</strong><b>{row.value}</b><time>{format(row.date)}</time><small>{row.filename||"Registro del sistema"}</small></article>)}</div>:<p>No hay valores adicionales registrados.</p>}
+
+function ReproductiveHistory({ entries }: { entries: HistoryEntry[] }) {
+  const history = reproductiveHistory(entries)
+  return <section aria-labelledby="animal-reproduction-title">
+    <h3 id="animal-reproduction-title">Tactos y sangrados</h3>
+    <div className="table-wrap animal-reproduction-table">
+      <table className="data-table" aria-labelledby="animal-reproduction-title">
+        <thead><tr>
+          <th scope="col">Fecha</th><th scope="col">Registro</th>
+          <th scope="col">Resultado</th><th scope="col">CSV de origen</th>
+        </tr></thead>
+        <tbody>
+          {history.map(item => <tr key={item.id}>
+            <td>{formatLivestockDate(item.date)}</td><td>{item.type}</td>
+            <td><strong>{item.result}</strong><small className="cell-note">{item.original}</small></td>
+            <td>{item.filename || "Archivo sin nombre registrado"}</td>
+          </tr>)}
+          {!history.length && <tr><td colSpan={4}>Todavía no hay tactos ni sangrados registrados en los CSV de este animal.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  </section>
+}

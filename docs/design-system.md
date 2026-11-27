@@ -60,6 +60,8 @@ Hacienda presenta un resumen visual del conjunto mostrado: cantidad, estados act
 
 ## Pantallas futuras
 
+Los desplegables se cierran con clic fuera y con Escape. Para campos y selectores, usar un solo borde discreto de foco. Evitar anillos exteriores, sombras de foco y bordes dobles.
+
 Usar PageHeader para título/acciones, Surface o `.panel` para tarjetas, SectionHeading para secciones y Badge para estados explícitos. Reutilizar `.data-table` dentro de `.table-wrap`, `.form-grid`, `.primary-button`, `.secondary-button`, `.dialog-card` y `.workspace-tabs`. Evitar colores hexadecimales y tamaños de fuente específicos de una página; usar tokens.
 
 ## Validación
